@@ -19,6 +19,10 @@ import nidaqmx
 import nidaqmx.system
 from nidaqmx.constants import LineGrouping
 
+"""
+The code seems to be unstable if alternating between trail and rec mode
+Also sometimes stream does not close properly (issue with sample_data_server.py) which causes code to crash after a while
+"""
 
 plot_duration = 5  # how many seconds of data to show
 update_interval = 30  # ms between screen updates
@@ -61,7 +65,7 @@ class display_force_data(tk.Toplevel):
         self.task_stim = task_stim
         self.force_holder = deque(list(np.empty(self.vis_buffer_len)))
         self.trig_holder = deque(list(np.empty(self.vis_buffer_len,dtype= bool)))
-
+        self.stim_profile_x = stim_profile_x
         self.x_axis = np.linspace(0,1,self.vis_buffer_len)
 
         self.attributes('-fullscreen', True)
@@ -107,7 +111,8 @@ class display_force_data(tk.Toplevel):
         self.inlet = DataInlet(stream[0])    
 
     def start_vis(self):
-        # self.task_stim.write(False)
+        if self.rec_flag:
+            self.task_stim.write(False)
         self.task_trial.write(True)
 
         array_data = self.inlet.pull_and_plot()#
@@ -122,14 +127,23 @@ class display_force_data(tk.Toplevel):
         samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
         _, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
         t0 = time.time()
+        stim_ctr = 0
+        curr_pulse_time = 1e16
+        if stim_ctr<len(self.stim_profile_x)-1:
+            curr_pulse_time = self.stim_profile_x[stim_ctr]
         while time.time()-t0 < self.trial_params['duration']:
             time.sleep(0.0001)
-            # self.task_stim.write(True)
-            
             self.trig_holder.popleft()
-            trig = [0]### Handle stim trigs
-            self.trig_holder.append(trig[0])
-
+            
+            stim = False
+            if time.time()-t0 > curr_pulse_time and stim_ctr<len(self.stim_profile_x)-1:
+                stim = True
+                self.task_stim.write(True)
+                stim_ctr+=1
+                curr_pulse_time = self.stim_profile_x[stim_ctr]
+                self.trig_holder.append(1)
+            self.trig_holder.append(0)
+            
             self.force_holder.popleft()
             array_data = self.inlet.pull_and_plot()
             samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,:64].T, zi=z_sos_raw)
@@ -140,17 +154,17 @@ class display_force_data(tk.Toplevel):
             force = np.median(array_data_scaled)
             self.force_holder.append(force)
             t_prev = time.time()-t0
-            print(time.time()-t0-t_prev,force)
+            print(time.time()-t0,curr_pulse_time,stim,force)
             if self.rec_flag:
+                self.task_stim.write(False)
                 self.parent.dump_time.append(t_prev)
-                self.parent.dump_trig.append(trig)
+                self.parent.dump_trig.append(self.trig_holder[-1])
                 self.parent.dump_force.append(force)
             disp_force = sorted(self.force_holder)
             self.l_current[0].set_data(self.x_axis*(time.time()-t0-t_prev-0.1)+t_prev,np.mean(disp_force)*np.ones(self.vis_buffer_len))
             self.disp_target.set_xlim([time.time()-t0-self.vis_xlim_pad,time.time()-t0+self.vis_xlim_pad])
             self.canvas_disp_target.draw()
             self.update()
-            # self.task_stim.write(False)
 
         self.destroy()
 
@@ -530,15 +544,15 @@ class APP(tk.Toplevel):
             "duration": float(self.trl_duration.get()),
             "MVF": float(self.max_force.get()),
             }
-        self.task_stim= [] 
-        self.task_trial = []
+        # self.task_stim= [] 
+        # self.task_trial = []
         window = display_force_data(self, self.task_trial, 
                                     self.task_stim, 
                                     self.target_profile_x,
                                     self.target_profile_y,
-                                    self.stim_profile_x,
-                                    self.stim_profile_y,
-                                    trial_params,
+                                    stim_profile_x =  np.empty(0),
+                                    stim_profile_y =  np.empty(0),
+                                    trial_params=trial_params,
                                     dev_select=self.vis_TMSi.get(),
                                     vis_chan_mode = self.vis_chan_mode.get(),
                                     vis_chan = self.vis_chan.get(),
@@ -694,6 +708,8 @@ class APP(tk.Toplevel):
         self.target_profile_y = [0, 0, max_force*sombrero_force, max_force*sombrero_force, max_force*peak_ramp_force, max_force*sombrero_force, max_force*sombrero_force, 0, 0]
         assert len(self.target_profile_x) == len(self.target_profile_y)
 
+        self.stim_profile_x = np.empty(0)
+        self.stim_profile_y = np.empty(0)
         self.disp_target.clear()
         
         self.disp_target.set_xlabel("Time (s)", fontsize=14)
@@ -712,6 +728,8 @@ class APP(tk.Toplevel):
         self.target_profile_x = [0, init_wait, trl_duration//2, trl_duration-init_wait, trl_duration]
         self.target_profile_y = [0, 0, peak_ramp_force*max_force, 0, 0]
         assert len(self.target_profile_x) == len(self.target_profile_y)
+        self.stim_profile_x = np.empty(0)
+        self.stim_profile_y = np.empty(0)
 
         self.disp_target.clear()
         self.disp_target.set_xlabel("Time (s)", fontsize=14)
