@@ -207,6 +207,8 @@ class display_force_data(tk.Toplevel):
             
             if self.vis_chan_mode == "single":
                 force = abs(force_arr[self.vis_chan])
+            elif self.vis_chan_mode == "aux":
+                force = abs(force_arr[self.vis_chan+63])
             else:
                 sorted_force = np.sort(force_arr)
                 force = abs(np.mean(sorted_force[self.vis_chan:-self.vis_chan]))
@@ -597,6 +599,12 @@ class APP(tk.Toplevel):
         if self.vis_chan_mode.get() == 'single':
             options = [x for x in range(1,65)]
             self.vis_chan.set(options[1])
+            for choice in options:
+                self.vis_chan_drop['menu'].add_command(label=choice,command=tk._setit(self.vis_chan, choice))
+        elif self.vis_chan_mode.get() == 'aux':
+            ch_list = self.tmsi_dev[self.vis_TMSi].dev.config.channels
+            options = [x for x in range(1,len(ch_list)-64)]
+            self.vis_chan.set(options[0])
             for choice in options:
                 self.vis_chan_drop['menu'].add_command(label=choice,command=tk._setit(self.vis_chan, choice))
         else:

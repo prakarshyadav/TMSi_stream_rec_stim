@@ -13,6 +13,7 @@ from matplotlib.figure import Figure
 from collections import deque
 from scipy.io import savemat
 from tmsi_dual_interface.tmsi_libraries.TMSiFileFormats.file_writer import FileWriter, FileFormat
+from tmsi_dual_interface.tmsi_libraries.TMSiSDK.device import ChannelType
 import math
 import pylsl
 import nidaqmx
@@ -78,6 +79,13 @@ class display_force_data(tk.Toplevel):
             self.parent.dump_force = []
             self.parent.dump_time = []
 
+        if self.vis_chan_mode == 'single':
+            self.vis_chan_slice = np.array([int(self.vis_chan)])
+        elif self.vis_chan_mode == 'aux':
+            self.vis_chan_slice = np.array([int(self.vis_chan) + self.parent.UNI_count-1])
+        else:
+            self.vis_chan_slice = np.arange(int(self.vis_chan))
+
         fig = Figure(figsize=(7, 4), dpi=100)
         self.disp_target = fig.add_subplot(111)
         
@@ -116,14 +124,23 @@ class display_force_data(tk.Toplevel):
         self.task_trial.write(True)
 
         array_data = self.inlet.pull_and_plot()#
-        sos_raw = butter(3, [20, 500], 'bandpass', fs=2000, output='sos')
-        sos_env= butter(3, 5, 'lowpass', fs=2000, output='sos')
-        z_sos0 = sosfilt_zi(sos_raw)
-        z_sos_raw=np.repeat(z_sos0[:, np.newaxis, :], 64, axis=1)
-        z_sos0 = sosfilt_zi(sos_env)
-        z_sos_env=np.repeat(z_sos0[:, np.newaxis, :], 64, axis=1)
-
-        samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,:64].T, zi=z_sos_raw)
+        if self.vis_chan_mode == 'aux':
+            sos_raw = butter(3, [0.2, 20], 'bandpass', fs=2000, output='sos')
+            sos_env= butter(3, 5, 'lowpass', fs=2000, output='sos')
+            z_sos0 = sosfilt_zi(sos_raw)
+            z_sos_raw=np.repeat(z_sos0[:, np.newaxis, :], len(self.vis_chan_slice), axis=1)
+            z_sos0 = sosfilt_zi(sos_env)
+            z_sos_env=np.repeat(z_sos0[:, np.newaxis, :], len(self.vis_chan_slice), axis=1)
+        else:
+            sos_raw = butter(3, [20, 500], 'bandpass', fs=2000, output='sos')
+            sos_env= butter(3, 5, 'lowpass', fs=2000, output='sos')
+            z_sos0 = sosfilt_zi(sos_raw)
+            z_sos_raw=np.repeat(z_sos0[:, np.newaxis, :], len(self.vis_chan_slice), axis=1)
+            z_sos0 = sosfilt_zi(sos_env)
+            z_sos_env=np.repeat(z_sos0[:, np.newaxis, :], len(self.vis_chan_slice), axis=1)
+        
+        
+        samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
         samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
         _, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
         t0 = time.time()
@@ -146,12 +163,22 @@ class display_force_data(tk.Toplevel):
             
             self.force_holder.popleft()
             array_data = self.inlet.pull_and_plot()
-            samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,:64].T, zi=z_sos_raw)
-            samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
-            array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
-
+            if self.vis_chan_mode == 'aux':
+                array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])
+                # samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
+                # samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
+                # array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
+            else:
+                samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
+                samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
+                array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
             array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
-            force = np.median(array_data_scaled)
+            
+            force = abs(np.mean(array_data_scaled))
+            if self.vis_chan_mode == 'aux':
+                force = force*float(self.parent.conv_factor.get())
+            # force = np.median(array_data_scaled)
+            print(force)
             self.force_holder.append(force)
             t_prev = time.time()-t0
             print(time.time()-t0,curr_pulse_time,stim,force)
@@ -207,6 +234,9 @@ class APP(tk.Toplevel):
         self.vis_mode_option2 = tk.Radiobutton(self, text="Average", variable=self.vis_chan_mode, value="avg", command=self.set_vis_mode)
         self.vis_mode_option2.pack(fill='x', expand=True)
         self.vis_mode_option2.place(x=530, y=30)
+        self.vis_mode_option2 = tk.Radiobutton(self, text="Aux", variable=self.vis_chan_mode, value="aux", command=self.set_vis_mode)
+        self.vis_mode_option2.pack(fill='x', expand=True)
+        self.vis_mode_option2.place(x=530, y=50)
 
         options = [0,10,32,64]
         self.vis_chan = tk.StringVar() 
@@ -287,15 +317,15 @@ class APP(tk.Toplevel):
         self.test_force_read_button.pack()
         self.test_force_read_button.place(x=110, y=10)
 
-        # self.conv_factor = tk.StringVar()
-        # self.lbl_conv_factor = ttk.Label(self, text='Torque Const.:')
-        # self.lbl_conv_factor.pack(fill='x', expand=True)
-        # self.lbl_conv_factor.place(x=10, y=220)
-        # self.t_conv_factor = tk.Entry(self, textvariable=self.conv_factor)
-        # self.t_conv_factor.insert(0, "0.26959694")
-        # self.t_conv_factor.pack(fill='x', expand=True)
-        # self.t_conv_factor.focus()
-        # self.t_conv_factor.place(x=150, y=220, width = 100)
+        self.conv_factor = tk.StringVar()
+        self.lbl_conv_factor = ttk.Label(self, text='Torque Const.:')
+        self.lbl_conv_factor.pack(fill='x', expand=True)
+        self.lbl_conv_factor.place(x=10, y=220)
+        self.t_conv_factor = tk.Entry(self, textvariable=self.conv_factor)
+        self.t_conv_factor.insert(0, "0.26959694")
+        self.t_conv_factor.pack(fill='x', expand=True)
+        self.t_conv_factor.focus()
+        self.t_conv_factor.place(x=150, y=220, width = 100)
 
         self.MVC_duration = tk.StringVar()
         self.lbl_MVC_len = ttk.Label(self, text='Duration of MVC (s):')
@@ -510,13 +540,38 @@ class APP(tk.Toplevel):
 
     def set_vis_mode(self):
         self.vis_chan_drop['menu'].delete(0, 'end')
+        
+        ch_list = self.tmsi_dev[self.vis_TMSi.get()].dev.config.channels
+        self.UNI_count = 0
+        self.AUX_count = 0
+        self.BIP_count = 0
+        self.DUD_count = 0
+        for idx, ch in enumerate(ch_list):
+            if (ch.type.value == ChannelType.UNI.value):
+                if ch.enabled == True:
+                    self.UNI_count+=1
+            elif (ch.type.value == ChannelType.AUX.value):
+                if ch.enabled == True:
+                    self.AUX_count += 1
+            elif (ch.type.value == ChannelType.BIP.value):
+                if ch.enabled == True:
+                    self.BIP_count += 1
+            else :
+                self.DUD_count += 1
+
         if self.vis_chan_mode.get() == 'single':
             options = [x for x in range(1,65)]
             self.vis_chan.set(options[1])
             for choice in options:
                 self.vis_chan_drop['menu'].add_command(label=choice,command=tk._setit(self.vis_chan, choice))
+        elif self.vis_chan_mode.get() == 'aux':
+            options = [x for x in range(1,self.AUX_count+self.BIP_count+1)]
+            self.vis_chan.set(options[0])
+            for choice in options:
+                self.vis_chan_drop['menu'].add_command(label=choice,command=tk._setit(self.vis_chan, choice))
         else:
-            options = [x for x in range(1,30)]
+            ch_list = self.tmsi_dev[self.vis_TMSi.get()].dev.config.channels
+            options = [x for x in reversed(range(1,self.UNI_count))]
             self.vis_chan.set(options[1])
             for choice in options:
                 self.vis_chan_drop['menu'].add_command(label=choice,command=tk._setit(self.vis_chan, choice))
@@ -639,6 +694,45 @@ class APP(tk.Toplevel):
         max_force = 0
         self.start_MVC_button.config(bg = 'red')
 
+        ch_list = self.tmsi_dev[self.vis_TMSi.get()].dev.config.channels
+        self.UNI_count = 0
+        self.AUX_count = 0
+        self.BIP_count = 0
+        self.DUD_count = 0
+        for idx, ch in enumerate(ch_list):
+            if (ch.type.value == ChannelType.UNI.value):
+                if ch.enabled == True:
+                    self.UNI_count+=1
+            elif (ch.type.value == ChannelType.AUX.value):
+                if ch.enabled == True:
+                    self.AUX_count += 1
+            elif (ch.type.value == ChannelType.BIP.value):
+                if ch.enabled == True:
+                    self.BIP_count += 1
+            else :
+                self.DUD_count += 1
+        if self.vis_chan_mode.get() == 'single':
+            self.vis_chan_slice = np.array([int(self.vis_chan.get())])
+        elif self.vis_chan_mode.get() == 'aux':
+            self.vis_chan_slice = np.array([int(self.vis_chan.get()) + self.UNI_count-1])
+        else:
+            self.vis_chan_slice = np.arange(int(self.vis_chan.get()))
+
+        if self.vis_chan_mode.get() == 'aux':
+            sos_raw = butter(3, [0.2, 20], 'bandpass', fs=2000, output='sos')
+            sos_env= butter(3, 5, 'lowpass', fs=2000, output='sos')
+            z_sos0 = sosfilt_zi(sos_raw)
+            z_sos_raw=np.repeat(z_sos0[:, np.newaxis, :], len(self.vis_chan_slice), axis=1)
+            z_sos0 = sosfilt_zi(sos_env)
+            z_sos_env=np.repeat(z_sos0[:, np.newaxis, :], len(self.vis_chan_slice), axis=1)
+        else:
+            sos_raw = butter(3, [20, 500], 'bandpass', fs=2000, output='sos')
+            sos_env= butter(3, 5, 'lowpass', fs=2000, output='sos')
+            z_sos0 = sosfilt_zi(sos_raw)
+            z_sos_raw=np.repeat(z_sos0[:, np.newaxis, :], len(self.vis_chan_slice), axis=1)
+            z_sos0 = sosfilt_zi(sos_env)
+            z_sos_env=np.repeat(z_sos0[:, np.newaxis, :], len(self.vis_chan_slice), axis=1)
+        
         self.start_tmsi(flag = "MVC")
         print("finding stream")
         stream = pylsl.resolve_stream('name', self.vis_TMSi.get())
@@ -652,15 +746,8 @@ class APP(tk.Toplevel):
         self.task_trial.write(True)
         array_data = self.inlet.pull_and_plot()#
 
-        sos_raw = butter(3, [20, 500], 'bandpass', fs=2000, output='sos')
-        sos_env= butter(3, 5, 'lowpass', fs=2000, output='sos')
-        z_sos0 = sosfilt_zi(sos_raw)
-        z_sos_raw=np.repeat(z_sos0[:, np.newaxis, :], 64, axis=1)
-        z_sos0 = sosfilt_zi(sos_env)
-        z_sos_env=np.repeat(z_sos0[:, np.newaxis, :], 64, axis=1)
-
-        samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,:64].T, zi=z_sos_raw)
-        samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
+        samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
+        samples = np.abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
         _, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
         t0 = time.time()
         ctr = 0 # this counter prevents initial values (with filter artifact) from being saved into MVC
@@ -668,11 +755,19 @@ class APP(tk.Toplevel):
             if ctr>3:
                 time.sleep(0.1)
                 array_data = self.inlet.pull_and_plot()
-                samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,:64].T, zi=z_sos_raw)
-                samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
-                array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
+                if self.vis_chan_mode.get() == 'aux':
+                    array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])#sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
+                    # samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
+                    # array_data_filt, z_sos_env= sosfilt(samples_raw.T, samples, zi=z_sos_env)
+                else:
+                    samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
+                    samples = np.abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
+                    array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
                 array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
                 curr_force = np.median(array_data_scaled)
+                
+                if self.vis_chan_mode.get() == 'aux':
+                    curr_force = curr_force*float(self.conv_factor.get())
                 print(curr_force)
                 if curr_force > max_force:
                     max_force = curr_force
@@ -682,11 +777,16 @@ class APP(tk.Toplevel):
                 ctr+=1
                 time.sleep(0.1)
                 array_data = self.inlet.pull_and_plot()
-                samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,:64].T, zi=z_sos_raw)
-                samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
-                array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
+                if self.vis_chan_mode.get() == 'aux':
+                    array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])
+                else:
+                    samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
+                    samples = np.abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
+                    array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
                 array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
                 curr_force = np.median(array_data_scaled)
+                if self.vis_chan_mode.get() == 'aux':
+                    curr_force = curr_force*float(self.conv_factor.get())
                 print("not saved",curr_force)
         
         self.task_trial.write(False)

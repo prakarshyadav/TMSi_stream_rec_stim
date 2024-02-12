@@ -110,7 +110,7 @@ class TMSi_GUI(tk.Toplevel):
         self.lbl4 = ttk.Label(self, text='AUX Channels')
         self.lbl4.pack(fill='x', expand=True)
         self.t4 = tk.Entry(self, textvariable=self.aux_num)
-        self.t4.insert(0, "None")
+        self.t4.insert(0, "1")
         self.t4.pack(fill='x', expand=True)
         self.t4.focus()
         self.lbl4.place(x=10, y=133)
