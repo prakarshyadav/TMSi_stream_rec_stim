@@ -33,7 +33,7 @@ class APP_main(tk.Tk):
         self.lblprompt = ttk.Label(self, text='2. Click to initialize recording')
         self.lblprompt.pack(fill='x', expand=True)
         self.lblprompt.place(x=10, y=65)
-
+        # self.open_disp()
     def open_TMSi_GUI(self):
         window = TMSi_gui.TMSi_GUI(self)
         window.grab_set()

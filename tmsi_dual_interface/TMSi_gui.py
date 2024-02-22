@@ -173,7 +173,7 @@ class TMSi_GUI(tk.Toplevel):
         # self.start_stream_button['command'] = self.start_stream
         # self.start_stream_button.pack()
         # self.start_stream_button.place(x=210, y=250)
-        
+            
 
 
 
@@ -181,12 +181,13 @@ class TMSi_GUI(tk.Toplevel):
         # self.stop_button['command'] = self.stop_recording
         # self.stop_button.pack()
         # self.stop_button.place(x=210, y=350)
-
+        
     def push_tmsi(self):
         self.destroy()
 
     def init_tmsi(self):
         self.device_dict = assign_devices(label_1 = str(self.tmsi_1_name.get()), label_2 = str(self.tmsi_2_name.get()))
+        self.config_chan()
         showinfo(title='Information', message='Initialized TMSi')
         self.tmsi_activate_button.config(bg = 'green')
 

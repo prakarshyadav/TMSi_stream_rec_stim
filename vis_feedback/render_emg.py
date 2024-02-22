@@ -25,7 +25,7 @@ The code seems to be unstable if alternating between trail and rec mode
 Also sometimes stream does not close properly (issue with sample_data_server.py) which causes code to crash after a while
 """
 
-plot_duration = 5  # how many seconds of data to show
+plot_duration = 15  # how many seconds of data to show
 update_interval = 30  # ms between screen updates
 pull_interval = 100  # ms between each pull operation
 
@@ -53,6 +53,212 @@ class DataInlet(Inlet):
                                       dest_obj=self.buffer)
         return self.buffer
     
+class check_MEPs_win(tk.Toplevel):
+    def __init__(self, parent, task_trial, task_stim, target_profile_x,target_profile_y,stim_profile_x,stim_profile_y, trial_params,dev_select='FLX', vis_chan_mode='avg', vis_chan = 10,record = False):
+        super().__init__(parent)
+
+        self.vis_buffer_len = 10
+        self.vis_xlim_pad = 3
+        self.EMG_avg_win = 100 #in samples
+        self.vis_chan_mode  = vis_chan_mode
+        self.vis_chan = int(vis_chan)
+        self.task_trial = task_trial
+        self.task_stim = task_stim
+        self.force_holder = deque(list(np.empty(self.vis_buffer_len)))
+        self.trig_holder = deque(list(np.empty(self.vis_buffer_len,dtype= bool)))
+        self.stim_profile_x = stim_profile_x
+        self.x_axis = np.linspace(0,1,self.vis_buffer_len)
+
+        self.attributes('-fullscreen', True)
+        self.title('Force Visualization')
+        self.trial_params = trial_params
+        self.rec_flag = record
+        self.parent = parent
+        if self.rec_flag:
+            self.parent.dump_trig = []
+            self.parent.dump_force = []
+            self.parent.dump_time = []
+
+        if self.vis_chan_mode == 'single':
+            self.vis_chan_slice = np.array([int(self.vis_chan)])
+        elif self.vis_chan_mode == 'aux':
+            self.vis_chan_slice = np.array([int(self.vis_chan) + self.parent.UNI_count-1])
+        else:
+            self.vis_chan_slice = np.arange(int(self.vis_chan))
+
+        fig_data = Figure()
+        self.disp_target = fig_data.add_subplot(111)
+        
+        fig_MEP = Figure()
+        self.check_MEP_fig = fig_MEP.add_subplot(111)
+        
+        
+        self.main_frame = tk.Frame(self, borderwidth=2, relief= 'solid')
+        self.main_frame.pack(side="bottom", expand=True, fill="both")
+        self.main_frame.grid_columnconfigure(0, weight=1,uniform=1)
+        self.main_frame.grid_rowconfigure(0, weight=1,uniform=1)
+        self.main_frame.grid_rowconfigure(1, weight=1,uniform=1)
+
+        self.frame1=tk.Frame(self.main_frame,bg="red")
+        self.frame1.grid(row=0, column=0, sticky='nsew')
+        self.frame2=tk.Frame(self.main_frame,bg="black")
+        self.frame2.grid(column=0,row=1,sticky='nsew')
+
+        self.canvas_disp_target = FigureCanvasTkAgg(fig_data, master=self.frame1,)  
+        self.canvas_disp_target.draw()
+        self.canvas_disp_target.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
+
+        self.canvas_check_MEP_fig = FigureCanvasTkAgg(fig_MEP, master=self.frame2,)  
+        self.canvas_check_MEP_fig.draw()
+        self.canvas_check_MEP_fig.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
+
+        self.disp_target.set_xlabel("Time (s)", fontsize=14)
+        self.disp_target.set_ylabel("Torque (Nm)", fontsize=14)
+        self.check_MEP_fig.set_xlabel("Time (ms)", fontsize=14)
+        self.check_MEP_fig.set_ylabel("EMG (uV)", fontsize=14)
+
+        self.l_target = self.disp_target.plot(target_profile_x, target_profile_y, linewidth = 50, color = 'r')
+        self.l_current = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 13, color = 'b',)
+        
+        self.x_axis_MEP = np.linspace(self.trial_params['MEP_winL'],self.trial_params['MEP_winU'],300)#
+        self.stim_line = self.check_MEP_fig.vlines(0,-1000,1000, linewidth = 3, color = 'k')
+        self.stim_line = self.check_MEP_fig.vlines(20,-1000,1000, linewidth = 1, color = 'c')
+        self.vis_MEP = self.check_MEP_fig.plot(self.x_axis_MEP, np.zeros_like(self.x_axis_MEP), linewidth = 2, color = 'r',)
+        
+        self.disp_target.set_xlim([0,self.trial_params['duration']])
+        self.disp_target.set_ylim([0,self.trial_params['MVF']*0.5])
+
+        self.check_MEP_fig.set_xlim([self.trial_params['MEP_winL'],self.trial_params['MEP_winU']])
+        self.check_MEP_fig.set_ylim([-self.trial_params['MVF']*0.5,self.trial_params['MVF']*0.5])
+
+        self.canvas_disp_target.draw()
+        self.canvas_check_MEP_fig.draw()
+
+        self.stream_vis_button = tk.Button(self, text='START TRIAL', bg ='yellow')
+        self.stream_vis_button['command'] = self.start_vis
+        self.stream_vis_button.pack()
+        self.stream_vis_button.place(x=100, y=100)
+        print("finding stream")
+        stream = pylsl.resolve_stream('name', dev_select)
+        for info in stream:
+            print('name: ', info.name())
+            print('channel count:', info.channel_count())
+            print('sampling rate:', info.nominal_srate())
+            print('type: ', info.type())
+        self.inlet = DataInlet(stream[0])    
+        self.inlet_STA = DataInlet(stream[0])    
+        
+    def start_vis(self):
+        if self.rec_flag:
+            self.task_stim.write(False)
+        self.task_trial.write(True)
+        data_STA = self.inlet_STA.pull_and_plot()#
+        array_data = self.inlet.pull_and_plot()#
+        if self.vis_chan_mode == 'aux':
+            sos_raw = butter(3, [0.2, 20], 'bandpass', fs=2000, output='sos')
+            sos_env= butter(3, 5, 'lowpass', fs=2000, output='sos')
+            z_sos0 = sosfilt_zi(sos_raw)
+            z_sos_raw=np.repeat(z_sos0[:, np.newaxis, :], len(self.vis_chan_slice), axis=1)
+            z_sos0 = sosfilt_zi(sos_env)
+            z_sos_env=np.repeat(z_sos0[:, np.newaxis, :], len(self.vis_chan_slice), axis=1)
+        else:
+            sos_raw = butter(3, [20, 500], 'bandpass', fs=2000, output='sos')
+            sos_env= butter(3, 5, 'lowpass', fs=2000, output='sos')
+            z_sos0 = sosfilt_zi(sos_raw)
+            z_sos_raw=np.repeat(z_sos0[:, np.newaxis, :], len(self.vis_chan_slice), axis=1)
+            z_sos0 = sosfilt_zi(sos_env)
+            z_sos_env=np.repeat(z_sos0[:, np.newaxis, :], len(self.vis_chan_slice), axis=1)
+        
+        STA_raw = sosfilt(sos_raw,data_STA[:,self.vis_chan_slice].T)
+        
+        samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
+        samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
+        _, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
+
+
+        t0 = time.time()
+        stim_ctr = 0
+        curr_pulse_time = 1e16
+        MEP_update = False
+        if stim_ctr<len(self.stim_profile_x)-1:
+            curr_pulse_time = self.stim_profile_x[stim_ctr]
+        while time.time()-t0 < self.trial_params['duration']:
+            time.sleep(0.0001)
+            self.trig_holder.popleft()
+            
+            stim = False
+            if time.time()-t0 > curr_pulse_time and stim_ctr<len(self.stim_profile_x):
+                stim = True
+                MEP_update = False
+                self.task_stim.write(True)
+                stim_ctr+=1
+                if stim_ctr<len(self.stim_profile_x):
+                    curr_pulse_time = self.stim_profile_x[stim_ctr]
+                else:
+                    curr_pulse_time += int(self.parent.stim_rate.get())
+                self.trig_holder.append(1)
+            self.trig_holder.append(0)
+            if time.time()-t0 > (curr_pulse_time-4) and not MEP_update:
+                MEP_update = True
+                data_STA = self.inlet_STA.pull_and_plot()#
+                trigs = data_STA[:,-3]
+                plot_event_idx = np.where(np.abs(np.diff(trigs))>0)[0]#[-1]
+                print("updating MEPs", plot_event_idx)
+                if len(plot_event_idx)>0:
+                    if self.vis_chan_mode == 'aux':
+                        data_STA_filt = np.abs(data_STA[:self.EMG_avg_win,self.vis_chan_slice])
+                    else:
+                        data_STA_filt = sosfilt(sos_raw, data_STA[:,self.vis_chan_slice].T)
+                    data_STA_scaled = np.nan_to_num(data_STA_filt,nan=0,posinf=0,neginf=0).T
+                    plot_data = data_STA_scaled[plot_event_idx[0]+self.trial_params['MEP_winL']*2:plot_event_idx[0]+self.trial_params['MEP_winU']*2,:]
+                    y_MEP = np.max(np.abs(plot_data))
+                    self.check_MEP_fig.set_ylim([-y_MEP*1.1,y_MEP*1.1])
+                    self.vis_MEP[0].set_data(self.x_axis_MEP,plot_data)
+
+                    # plot_data = np.abs(np.diff(trigs))
+                    # self.check_MEP_fig.set_xlim([0,1])
+                    # self.check_MEP_fig.set_ylim([-0.5,1.5])
+                    # self.vis_MEP[0].set_data(np.linspace(0,1,plot_data.shape[0]),plot_data)
+                    self.canvas_check_MEP_fig.draw()
+                else:
+                    print("Warning Trigs not detected")
+
+                
+            self.force_holder.popleft()
+            array_data = self.inlet.pull_and_plot()
+            if self.vis_chan_mode == 'aux':
+                array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])
+                # samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
+                # samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
+                # array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
+            else:
+                samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
+                samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
+                array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
+            array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
+            
+            force = abs(np.mean(array_data_scaled))
+            if self.vis_chan_mode == 'aux':
+                force = force*float(self.parent.conv_factor.get())
+            # force = np.median(array_data_scaled)
+            # print(force)
+            self.force_holder.append(force)
+            t_prev = time.time()-t0
+            if stim==True:
+                print(time.time()-t0,curr_pulse_time,stim,force)
+            if self.rec_flag:
+                self.task_stim.write(False)
+                self.parent.dump_time.append(t_prev)
+                self.parent.dump_trig.append(self.trig_holder[-1])
+                self.parent.dump_force.append(force)
+            disp_force = sorted(self.force_holder)
+            self.l_current[0].set_data(self.x_axis*(time.time()-t0-t_prev-0.1)+t_prev,np.mean(disp_force)*np.ones(self.vis_buffer_len))
+            self.disp_target.set_xlim([time.time()-t0-self.vis_xlim_pad,time.time()-t0+self.vis_xlim_pad])
+            self.canvas_disp_target.draw()
+            self.update()
+
+        self.destroy()
+
 class display_force_data(tk.Toplevel):
     def __init__(self, parent, task_trial, task_stim, target_profile_x,target_profile_y,stim_profile_x,stim_profile_y, trial_params,dev_select='FLX', vis_chan_mode='avg', vis_chan = 10,record = False):
         super().__init__(parent)
@@ -86,13 +292,17 @@ class display_force_data(tk.Toplevel):
         else:
             self.vis_chan_slice = np.arange(int(self.vis_chan))
 
-        fig = Figure(figsize=(7, 4), dpi=100)
+        fig = Figure()
         self.disp_target = fig.add_subplot(111)
         
         self.disp_target.set_xlabel("Time (s)", fontsize=14)
         self.disp_target.set_ylabel("Torque (Nm)", fontsize=14)
         
-        self.canvas_disp_target = FigureCanvasTkAgg(fig, master=self)  
+        self.main_frame = tk.Frame(self, borderwidth=2, relief= 'solid')
+        self.main_frame.pack(side="bottom", expand=True, fill="both")
+
+
+        self.canvas_disp_target = FigureCanvasTkAgg(fig, master=self.main_frame,)  
         self.canvas_disp_target.draw()
         self.canvas_disp_target.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
 
@@ -117,7 +327,8 @@ class display_force_data(tk.Toplevel):
             print('sampling rate:', info.nominal_srate())
             print('type: ', info.type())
         self.inlet = DataInlet(stream[0])    
-
+        self.inlet_STA = DataInlet(stream[0])    
+        
     def start_vis(self):
         if self.rec_flag:
             self.task_stim.write(False)
@@ -153,11 +364,14 @@ class display_force_data(tk.Toplevel):
             self.trig_holder.popleft()
             
             stim = False
-            if time.time()-t0 > curr_pulse_time and stim_ctr<len(self.stim_profile_x)-1:
+            if time.time()-t0 > curr_pulse_time and stim_ctr<len(self.stim_profile_x):
                 stim = True
                 self.task_stim.write(True)
                 stim_ctr+=1
-                curr_pulse_time = self.stim_profile_x[stim_ctr]
+                if stim_ctr<len(self.stim_profile_x):
+                    curr_pulse_time = self.stim_profile_x[stim_ctr]
+                else:
+                    curr_pulse_time += int(self.parent.stim_rate.get())
                 self.trig_holder.append(1)
             self.trig_holder.append(0)
             
@@ -178,10 +392,10 @@ class display_force_data(tk.Toplevel):
             if self.vis_chan_mode == 'aux':
                 force = force*float(self.parent.conv_factor.get())
             # force = np.median(array_data_scaled)
-            print(force)
             self.force_holder.append(force)
             t_prev = time.time()-t0
-            print(time.time()-t0,curr_pulse_time,stim,force)
+            if stim==True:
+                print(time.time()-t0,curr_pulse_time,stim,force)
             if self.rec_flag:
                 self.task_stim.write(False)
                 self.parent.dump_time.append(t_prev)
@@ -234,11 +448,11 @@ class APP(tk.Toplevel):
         self.vis_mode_option2 = tk.Radiobutton(self, text="Average", variable=self.vis_chan_mode, value="avg", command=self.set_vis_mode)
         self.vis_mode_option2.pack(fill='x', expand=True)
         self.vis_mode_option2.place(x=530, y=30)
-        self.vis_mode_option2 = tk.Radiobutton(self, text="Aux", variable=self.vis_chan_mode, value="aux", command=self.set_vis_mode)
-        self.vis_mode_option2.pack(fill='x', expand=True)
-        self.vis_mode_option2.place(x=530, y=50)
+        self.vis_mode_option3 = tk.Radiobutton(self, text="Aux", variable=self.vis_chan_mode, value="aux", command=self.set_vis_mode)
+        self.vis_mode_option3.pack(fill='x', expand=True)
+        self.vis_mode_option3.place(x=530, y=50)
 
-        options = [0,10,32,64]
+        options = [0,36]
         self.vis_chan = tk.StringVar() 
         self.vis_chan.set(options[1])
         self.vis_chan_drop = tk.OptionMenu( self , self.vis_chan , *options) #tk.Button(self, text='START', bg ='green')
@@ -277,7 +491,7 @@ class APP(tk.Toplevel):
         self.lbl_daq_name.pack(fill='x', expand=True)
         self.lbl_daq_name.place(x=10, y=100)
         self.t_daq_name = tk.Entry(self, textvariable=self.daq_name)
-        self.t_daq_name.insert(0, "Dev1")
+        self.t_daq_name.insert(0, "Dev4")
         self.t_daq_name.pack(fill='x', expand=True)
         self.t_daq_name.focus()
         self.t_daq_name.place(x=150, y=100, width = 100)
@@ -376,7 +590,7 @@ class APP(tk.Toplevel):
         self.lbl_max_force.pack(fill='x', expand=True)
         self.lbl_max_force.place(x=400, y=150)
         self.max_force = tk.StringVar()
-        self.max_force.set('0')
+        self.max_force.set('10')
         
         self.lbl_max_force_num = ttk.Label(self, textvariable=self.max_force,font=('Helvetica 30 bold'))
         self.lbl_max_force_num.pack(fill='x', expand=True)
@@ -442,7 +656,7 @@ class APP(tk.Toplevel):
         self.lbl_stim_rate.pack(fill='x', expand=True)
         self.lbl_stim_rate.place(x=710, y=20)
         self.t_stim_rate = tk.Entry(self, textvariable=self.stim_rate)
-        self.t_stim_rate.insert(0, "2")
+        self.t_stim_rate.insert(0, "5")
         self.t_stim_rate.pack(fill='x', expand=True)
         self.t_stim_rate.focus()
         self.t_stim_rate.place(x=850, y=20, width = 100)
@@ -452,7 +666,7 @@ class APP(tk.Toplevel):
         self.lbl_stim_start.pack(fill='x', expand=True)
         self.lbl_stim_start.place(x=710, y=50)
         self.t_stim_start = tk.Entry(self, textvariable=self.stim_start)
-        self.t_stim_start.insert(0, "10")
+        self.t_stim_start.insert(0, "5")
         self.t_stim_start.pack(fill='x', expand=True)
         self.t_stim_start.focus()
         self.t_stim_start.place(x=850, y=50, width = 100)
@@ -477,6 +691,12 @@ class APP(tk.Toplevel):
         self.clearstim_button.pack()
         self.clearstim_button.place(x=900, y=140)
 
+        self.check_MEPs_button = tk.Button(self, text='Check MEPs', bg ='yellow')
+        self.check_MEPs_button['command'] = self.check_MEPs
+        self.check_MEPs_button.pack()
+        self.check_MEPs_button.place(x=900, y=190)
+
+
         fig = Figure(figsize=(7, 4), dpi=100)
         self.disp_target = fig.add_subplot(111)
         
@@ -488,6 +708,8 @@ class APP(tk.Toplevel):
         self.canvas_disp_target.draw()
         self.canvas_disp_target.get_tk_widget().pack(side=tk.BOTTOM, fill='x', expand=True)
         self.canvas_disp_target.get_tk_widget().place(y=550,)
+
+        self.do_vanilla()
 
     def start_rec(self,):
         self.task_trial.write(False)
@@ -518,14 +740,14 @@ class APP(tk.Toplevel):
         window.grab_set()
         self.wait_window(window)
 
-        out_mat = {
-            "time": np.array(self.dump_time),
-            "force": np.array(self.dump_force),
-            "trigs": np.array(self.dump_trig),
-            "target_profile": np.array((self.target_profile_x,self.target_profile_y)).T,
-            "MVC": float(self.max_force.get())
-                   }
-        savemat(os.path.join(self.dump_path.get(),'trial_'+ self.trial_ID.get()+'_'+str(start_time)+'_dev1_'+".mat"), out_mat)
+        # out_mat = {
+        #     "time": np.array(self.dump_time),
+        #     "force": np.array(self.dump_force),
+        #     "trigs": np.array(self.dump_trig),
+        #     "target_profile": np.array((self.target_profile_x,self.target_profile_y)).T,
+        #     "MVC": float(self.max_force.get())
+        #            }
+        # savemat(os.path.join(self.dump_path.get(),'trial_'+ self.trial_ID.get()+'_'+str(start_time)+'_dev1_'+".mat"), out_mat)
         self.task_trial.write(False)
 
         self.stop_tmsi()
@@ -533,9 +755,6 @@ class APP(tk.Toplevel):
         current_trial = int(self.trial_ID.get())
         self.t_trial_ID.delete(0, 'end')
         self.t_trial_ID.insert(0, str(current_trial))
-        self.dump_path.get(), 
-        self.trial_ID.get(),
-
         self.update()
 
     def set_vis_mode(self):
@@ -618,11 +837,41 @@ class APP(tk.Toplevel):
         self.stop_tmsi(flag = "no_rec")
         self.test_force_read_button.config(bg = 'yellow')
 
+    def check_MEPs(self):
+        self.task_trial.write(False)
+        print('starting')
+        self.start_tmsi(flag='check')
+        start_time = time.time()
+        trial_params = {
+            "duration": float(self.trl_duration.get()),
+            "MVF": float(self.max_force.get()),
+            "MEP_winU": 100,
+            "MEP_winL": -50,
+            }
+        window = check_MEPs_win(self, self.task_trial, 
+                                    self.task_stim, 
+                                    self.target_profile_x,
+                                    self.target_profile_y,
+                                    self.stim_profile_x,
+                                    self.stim_profile_y,
+                                    trial_params,
+                                    dev_select=self.vis_TMSi.get(),
+                                    vis_chan_mode = self.vis_chan_mode.get(),
+                                    vis_chan = self.vis_chan.get(),
+                                    record=True
+                                    )
+        self.task_trial.write(False)
+        window.grab_set()
+        self.wait_window(window)
+        self.stop_tmsi(flag='rec')
+        self.update()
+
     def check_dir(self):
         dump_name = self.dump_path.get()
         if not os.path.isdir(dump_name):
             print("Dir not found, making it")
-            os.makedirs(dump_name)
+            # os.makedirs(dump_name)
+            os.makedirs(dump_name+'/MEPs')
         self.check_dir_button.config(bg = 'green')
 
     def start_DAQ(self):
@@ -657,16 +906,25 @@ class APP(tk.Toplevel):
         self.stream_2 = FileWriter(FileFormat.lsl, self.tmsi_dev[keysList[1]].dev_name)
         self.stream_2.open(self.tmsi_dev[keysList[1]].dev)
         if flag != "no_rec" and flag == "MVC":
-            save_path1 = os.path.join(dump_path,'trial_MVC_'+str(start_time)+'_dev1_'+'.poly5')
-            save_path2 = os.path.join(dump_path,'trial_MVC_'+str(start_time)+'_dev2_'+'.poly5')
+            save_path1 = os.path.join(dump_path,'trial_MVC_'+str(start_time)+'_'+keysList[0]+'.poly5')
+            save_path2 = os.path.join(dump_path,'trial_MVC_'+str(start_time)+'_'+keysList[1]+'.poly5')
             self.file_writer1 = FileWriter(FileFormat.poly5, save_path1)
             self.file_writer1.open(self.tmsi_dev[keysList[0]].dev)
             self.file_writer2 = FileWriter(FileFormat.poly5, save_path2)
             self.file_writer2.open(self.tmsi_dev[keysList[1]].dev)
+        
+        elif flag != "no_rec" and flag == "check":
+            save_path1 = os.path.join(dump_path,'MEPs',str(start_time)+'_'+keysList[0]+'.poly5')
+            save_path2 = os.path.join(dump_path,'MEPs',str(start_time)+'_'+keysList[1]+'.poly5')
+            self.file_writer1 = FileWriter(FileFormat.poly5, save_path1)
+            self.file_writer1.open(self.tmsi_dev[keysList[0]].dev)
+            self.file_writer2 = FileWriter(FileFormat.poly5, save_path2)
+            self.file_writer2.open(self.tmsi_dev[keysList[1]].dev)
+        
             
         elif flag != "no_rec" and flag == "rec":
-            save_path1 = os.path.join(dump_path,'trial_'+str(trial_num)+'_'+str(start_time)+'_dev1_'+'.poly5')
-            save_path2 = os.path.join(dump_path,'trial_'+str(trial_num)+'_'+str(start_time)+'_dev2_'+'.poly5')
+            save_path1 = os.path.join(dump_path,'trial_'+str(trial_num)+'_'+str(start_time)+'_'+keysList[0]+'.poly5')
+            save_path2 = os.path.join(dump_path,'trial_'+str(trial_num)+'_'+str(start_time)+'_'+keysList[1]+'.poly5')
             self.file_writer1 = FileWriter(FileFormat.poly5, save_path1)
             self.file_writer1.open(self.tmsi_dev[keysList[0]].dev)
             self.file_writer2 = FileWriter(FileFormat.poly5, save_path2)
@@ -683,7 +941,7 @@ class APP(tk.Toplevel):
             self.file_writer2.close()
         self.stream_1.close()
         self.stream_2.close()
-    
+        time.sleep(0.5)
         self.tmsi_dev[keysList[0]].dev.stop_measurement()
         self.tmsi_dev[keysList[1]].dev.stop_measurement()
 
