@@ -52,9 +52,25 @@ class DataInlet(Inlet):
                                       max_samples=self.buffer.shape[0],
                                       dest_obj=self.buffer)
         return self.buffer
+class DataInlet_reset(Inlet):
+    dtypes = [[], np.float32, np.float64, None, np.int32, np.int16, np.int8, np.int64]
+
+    def __init__(self, info: pylsl.StreamInfo):#, plt: pg.PlotItem):
+        super().__init__(info)
+        self.bufsize = (2 * math.ceil(info.nominal_srate() * plot_duration), info.channel_count())
+        self.info = info.channel_format()
+        self.buffer = np.empty(self.bufsize, dtype=self.dtypes[self.info])
+
+    def pull_and_plot(self,):
+        _, ts = self.inlet.pull_chunk(timeout=0.0,
+                                      max_samples=self.buffer.shape[0],
+                                      dest_obj=self.buffer)
+        out = self.buffer
+        self.buffer = np.empty(self.bufsize, dtype=self.dtypes[self.info])
+        return out
     
 class check_MEPs_win(tk.Toplevel):
-    def __init__(self, parent, task_trial, task_stim, target_profile_x,target_profile_y,stim_profile_x,stim_profile_y, trial_params,dev_select='FLX', vis_chan_mode='avg', vis_chan = 10,record = False):
+    def __init__(self, parent, task_trial, task_stim, target_profile_x,target_profile_y,stim_profile_x,stim_profile_y, trial_params,dev_select='FLX', vis_chan_mode='avg', vis_chan = 10,vis_chan_mode_check='single', vis_chan_check = 35,record = False,):
         super().__init__(parent)
 
         self.vis_buffer_len = 10
@@ -62,6 +78,8 @@ class check_MEPs_win(tk.Toplevel):
         self.EMG_avg_win = 100 #in samples
         self.vis_chan_mode  = vis_chan_mode
         self.vis_chan = int(vis_chan)
+        self.vis_chan_mode_check  = vis_chan_mode_check
+        self.vis_chan_check = int(vis_chan_check)
         self.task_trial = task_trial
         self.task_stim = task_stim
         self.force_holder = deque(list(np.empty(self.vis_buffer_len)))
@@ -85,6 +103,13 @@ class check_MEPs_win(tk.Toplevel):
             self.vis_chan_slice = np.array([int(self.vis_chan) + self.parent.UNI_count-1])
         else:
             self.vis_chan_slice = np.arange(int(self.vis_chan))
+
+        if self.vis_chan_mode_check == 'single':
+            self.vis_chan_slice_check = np.array([int(self.vis_chan_check)])
+        elif self.vis_chan_mode_check == 'aux':
+            self.vis_chan_slice_check = np.array([int(self.vis_chan_check) + self.parent.UNI_count-1])
+        else:
+            self.vis_chan_slice_check = np.arange(int(self.vis_chan_check))
 
         fig_data = Figure()
         self.disp_target = fig_data.add_subplot(111)
@@ -120,9 +145,10 @@ class check_MEPs_win(tk.Toplevel):
         self.l_target = self.disp_target.plot(target_profile_x, target_profile_y, linewidth = 50, color = 'r')
         self.l_current = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 13, color = 'b',)
         
-        self.x_axis_MEP = np.linspace(self.trial_params['MEP_winL'],self.trial_params['MEP_winU'],300)#
+        self.x_axis_MEP = np.linspace(self.trial_params['MEP_winL'],self.trial_params['MEP_winU'],(self.trial_params['MEP_winU'] - self.trial_params['MEP_winL'])*2)#
         self.stim_line = self.check_MEP_fig.vlines(0,-1000,1000, linewidth = 3, color = 'k')
         self.stim_line = self.check_MEP_fig.vlines(20,-1000,1000, linewidth = 1, color = 'c')
+        self.stim_line = self.check_MEP_fig.hlines(0,self.trial_params['MEP_winL'],self.trial_params['MEP_winU'], linewidth = 1, color = 'c')
         self.vis_MEP = self.check_MEP_fig.plot(self.x_axis_MEP, np.zeros_like(self.x_axis_MEP), linewidth = 2, color = 'r',)
         
         self.disp_target.set_xlim([0,self.trial_params['duration']])
@@ -146,7 +172,7 @@ class check_MEPs_win(tk.Toplevel):
             print('sampling rate:', info.nominal_srate())
             print('type: ', info.type())
         self.inlet = DataInlet(stream[0])    
-        self.inlet_STA = DataInlet(stream[0])    
+        self.inlet_STA = DataInlet_reset(stream[0])    
         
     def start_vis(self):
         if self.rec_flag:
@@ -169,7 +195,7 @@ class check_MEPs_win(tk.Toplevel):
             z_sos0 = sosfilt_zi(sos_env)
             z_sos_env=np.repeat(z_sos0[:, np.newaxis, :], len(self.vis_chan_slice), axis=1)
         
-        STA_raw = sosfilt(sos_raw,data_STA[:,self.vis_chan_slice].T)
+        STA_raw = sosfilt(sos_raw,data_STA[:,self.vis_chan_slice_check].T)
         
         samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
         samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
@@ -180,6 +206,7 @@ class check_MEPs_win(tk.Toplevel):
         stim_ctr = 0
         curr_pulse_time = 1e16
         MEP_update = False
+        data_STA = self.inlet_STA.pull_and_plot()#
         if stim_ctr<len(self.stim_profile_x)-1:
             curr_pulse_time = self.stim_profile_x[stim_ctr]
         while time.time()-t0 < self.trial_params['duration']:
@@ -198,19 +225,19 @@ class check_MEPs_win(tk.Toplevel):
                     curr_pulse_time += int(self.parent.stim_rate.get())
                 self.trig_holder.append(1)
             self.trig_holder.append(0)
-            if time.time()-t0 > (curr_pulse_time-4) and not MEP_update:
+            if time.time()-t0 > (curr_pulse_time-3.5) and not MEP_update and stim_ctr > 0:
                 MEP_update = True
                 data_STA = self.inlet_STA.pull_and_plot()#
                 trigs = data_STA[:,-3]
                 plot_event_idx = np.where(np.abs(np.diff(trigs))>0)[0]#[-1]
                 print("updating MEPs", plot_event_idx)
                 if len(plot_event_idx)>0:
-                    if self.vis_chan_mode == 'aux':
-                        data_STA_filt = np.abs(data_STA[:self.EMG_avg_win,self.vis_chan_slice])
+                    if self.vis_chan_mode_check == 'aux':
+                        data_STA_filt = np.abs(data_STA[:,self.vis_chan_slice_check])
                     else:
-                        data_STA_filt = sosfilt(sos_raw, data_STA[:,self.vis_chan_slice].T)
-                    data_STA_scaled = np.nan_to_num(data_STA_filt,nan=0,posinf=0,neginf=0).T
-                    plot_data = data_STA_scaled[plot_event_idx[0]+self.trial_params['MEP_winL']*2:plot_event_idx[0]+self.trial_params['MEP_winU']*2,:]
+                        data_STA_filt = sosfilt(sos_raw, data_STA[:,self.vis_chan_slice_check].T)
+                    data_STA_scaled = np.nan_to_num(data_STA_filt,nan=0,posinf=0,neginf=0).reshape(-1)
+                    plot_data = data_STA_scaled[plot_event_idx[-2]+self.trial_params['MEP_winL']*2:plot_event_idx[-2]+self.trial_params['MEP_winU']*2]
                     y_MEP = np.max(np.abs(plot_data))
                     self.check_MEP_fig.set_ylim([-y_MEP*1.1,y_MEP*1.1])
                     self.vis_MEP[0].set_data(self.x_axis_MEP,plot_data)
@@ -709,6 +736,25 @@ class APP(tk.Toplevel):
         self.canvas_disp_target.get_tk_widget().pack(side=tk.BOTTOM, fill='x', expand=True)
         self.canvas_disp_target.get_tk_widget().place(y=550,)
 
+
+        self.lbl_vis_mode_check = ttk.Label(self, text='Select feedback mode (Check):')
+        self.lbl_vis_mode_check.pack(fill='x', expand=True)
+        self.lbl_vis_mode_check.place(x=650, y=250)
+        self.vis_chan_mode_check = tk.StringVar() 
+        self.vis_mode_option1_check = tk.Radiobutton(self, text="Single Chan", variable=self.vis_chan_mode_check, value="single", command=self.set_vis_mode_check)
+        self.vis_mode_option1_check.pack(fill='x', expand=True)
+        self.vis_mode_option1_check.place(x=850, y=250)
+        self.vis_mode_option3_check = tk.Radiobutton(self, text="Aux", variable=self.vis_chan_mode_check, value="aux", command=self.set_vis_mode_check)
+        self.vis_mode_option3_check.pack(fill='x', expand=True)
+        self.vis_mode_option3_check.place(x=850, y=280)
+
+        options = [x for x in range(1,65)]
+        self.vis_chan_check = tk.StringVar() 
+        self.vis_chan_check.set(options[35])
+        self.vis_chan_drop_check = tk.OptionMenu( self , self.vis_chan_check , *options) #tk.Button(self, text='START', bg ='green')
+        self.vis_chan_drop_check.pack()
+        self.vis_chan_drop_check.place(x=850, y=310)
+
         self.do_vanilla()
 
     def start_rec(self,):
@@ -795,6 +841,44 @@ class APP(tk.Toplevel):
             for choice in options:
                 self.vis_chan_drop['menu'].add_command(label=choice,command=tk._setit(self.vis_chan, choice))
  
+    def set_vis_mode_check(self):
+        self.vis_chan_drop_check['menu'].delete(0, 'end')
+        
+        ch_list = self.tmsi_dev[self.vis_TMSi.get()].dev.config.channels
+        self.UNI_count = 0
+        self.AUX_count = 0
+        self.BIP_count = 0
+        self.DUD_count = 0
+        for idx, ch in enumerate(ch_list):
+            if (ch.type.value == ChannelType.UNI.value):
+                if ch.enabled == True:
+                    self.UNI_count+=1
+            elif (ch.type.value == ChannelType.AUX.value):
+                if ch.enabled == True:
+                    self.AUX_count += 1
+            elif (ch.type.value == ChannelType.BIP.value):
+                if ch.enabled == True:
+                    self.BIP_count += 1
+            else :
+                self.DUD_count += 1
+
+        if self.vis_chan_mode_check.get() == 'single':
+            options = [x for x in range(1,65)]
+            self.vis_chan_check.set(options[1])
+            for choice in options:
+                self.vis_chan_drop_check['menu'].add_command(label=choice,command=tk._setit(self.vis_chan_check, choice))
+        elif self.vis_chan_mode_check.get() == 'aux':
+            options = [x for x in range(1,self.AUX_count+self.BIP_count+1)]
+            self.vis_chan_check.set(options[0])
+            for choice in options:
+                self.vis_chan_drop_check['menu'].add_command(label=choice,command=tk._setit(self.vis_chan_check, choice))
+        else:
+            ch_list = self.tmsi_dev[self.vis_TMSi.get()].dev.config.channels
+            options = [x for x in reversed(range(1,self.UNI_count))]
+            self.vis_chan_check.set(options[1])
+            for choice in options:
+                self.vis_chan_drop_check['menu'].add_command(label=choice,command=tk._setit(self.vis_chan_check, choice))
+ 
     def manualMVC(self):
         self.manualMVC_button.config(bg = 'green')
         self.max_force.set(self.max_force.get())
@@ -858,7 +942,9 @@ class APP(tk.Toplevel):
                                     dev_select=self.vis_TMSi.get(),
                                     vis_chan_mode = self.vis_chan_mode.get(),
                                     vis_chan = self.vis_chan.get(),
-                                    record=True
+                                    vis_chan_mode_check=self.vis_chan_mode_check.get(), 
+                                    vis_chan_check = self.vis_chan_check.get(),
+                                    record=True,
                                     )
         self.task_trial.write(False)
         window.grab_set()
@@ -1049,7 +1135,7 @@ class APP(tk.Toplevel):
         
         self.task_trial.write(False)
         self.stop_tmsi()
-        showinfo(title='STOP MVC', message="STOP MVC")
+        # showinfo(title='STOP MVC', message="STOP MVC")
         self.start_MVC_button.config(bg = 'green')
 
     def do_sombrero(self):

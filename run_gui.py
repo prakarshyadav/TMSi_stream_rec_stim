@@ -13,6 +13,7 @@ from tmsi_dual_interface import TMSi_gui
 class APP_main(tk.Tk):
     def __init__(self):
         super().__init__()
+        
         self.title('Main interface for gesture decoding')
         self.geometry('500x200')
         
