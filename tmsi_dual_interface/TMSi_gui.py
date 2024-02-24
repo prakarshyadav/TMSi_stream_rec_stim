@@ -181,7 +181,6 @@ class TMSi_GUI(tk.Toplevel):
         # self.stop_button['command'] = self.stop_recording
         # self.stop_button.pack()
         # self.stop_button.place(x=210, y=350)
-        
     def push_tmsi(self):
         self.destroy()
 

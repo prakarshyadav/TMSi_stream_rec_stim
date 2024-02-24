@@ -238,6 +238,8 @@ class check_MEPs_win(tk.Toplevel):
                         data_STA_filt = sosfilt(sos_raw, data_STA[:,self.vis_chan_slice_check].T)
                     data_STA_scaled = np.nan_to_num(data_STA_filt,nan=0,posinf=0,neginf=0).reshape(-1)
                     plot_data = data_STA_scaled[plot_event_idx[-2]+self.trial_params['MEP_winL']*2:plot_event_idx[-2]+self.trial_params['MEP_winU']*2]
+                    l_cut = 4; u_cut = 10
+                    plot_data[abs(self.trial_params['MEP_winL']*2)-l_cut:abs(self.trial_params['MEP_winL']*2)+u_cut] = np.zeros(l_cut+u_cut)
                     y_MEP = np.max(np.abs(plot_data))
                     self.check_MEP_fig.set_ylim([-y_MEP*1.1,y_MEP*1.1])
                     self.vis_MEP[0].set_data(self.x_axis_MEP,plot_data)
@@ -786,14 +788,14 @@ class APP(tk.Toplevel):
         window.grab_set()
         self.wait_window(window)
 
-        # out_mat = {
-        #     "time": np.array(self.dump_time),
-        #     "force": np.array(self.dump_force),
-        #     "trigs": np.array(self.dump_trig),
-        #     "target_profile": np.array((self.target_profile_x,self.target_profile_y)).T,
-        #     "MVC": float(self.max_force.get())
-        #            }
-        # savemat(os.path.join(self.dump_path.get(),'trial_'+ self.trial_ID.get()+'_'+str(start_time)+'_dev1_'+".mat"), out_mat)
+        out_mat = {
+            "time": np.array(self.dump_time),
+            "force": np.array(self.dump_force),
+            "trigs": np.array(self.dump_trig),
+            "target_profile": np.array((self.target_profile_x,self.target_profile_y)).T,
+            "MVC": float(self.max_force.get())
+                   }
+        savemat(os.path.join(self.dump_path.get(),'trial_'+ self.trial_ID.get()+'_'+str(start_time)+'_profiles'+".mat"), out_mat)
         self.task_trial.write(False)
 
         self.stop_tmsi()
