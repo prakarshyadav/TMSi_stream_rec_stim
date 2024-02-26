@@ -48,6 +48,11 @@ class TMSi_GUI(tk.Toplevel):
         self.lbl1.place(x=10, y=35)
         self.t1.place(x=260, y=35)
 
+
+        self.dev_warn = ttk.Label(self, text='NOTE: Use "None" to not include tmsi (prefer TMSi 1)')
+        self.dev_warn.pack(fill='x', expand=True)
+        self.dev_warn.place(x=400, y=10)
+
         self.tmsi_activate_button = tk.Button(self, text='Start Devices', bg ='yellow')
         self.tmsi_activate_button['command'] = self.init_tmsi
         self.tmsi_activate_button.pack()
@@ -58,8 +63,6 @@ class TMSi_GUI(tk.Toplevel):
         self.AUX_check = tk.IntVar()
         self.fs_check = tk.IntVar()
         self.trig_check = tk.IntVar()
-
-
 
         self.channel_warn = ttk.Label(self, text='NOTE: Enter channel number before checking the box || Use "None" to not include channel')
         self.channel_warn.pack(fill='x', expand=True)
@@ -181,6 +184,7 @@ class TMSi_GUI(tk.Toplevel):
         # self.stop_button['command'] = self.stop_recording
         # self.stop_button.pack()
         # self.stop_button.place(x=210, y=350)
+
     def push_tmsi(self):
         self.destroy()
 
@@ -275,100 +279,83 @@ class TMSi_GUI(tk.Toplevel):
 
     def start_plotter(self):
 
-        keysList = list(self.device_dict.keys())
-        plotter_app = QtWidgets.QApplication.instance()
-        if not plotter_app:
-            plotter_app = QtWidgets.QApplication(sys.argv)
+        for key in self.device_dict.keys():
 
-        filter_appl = filters.RealTimeFilter(self.device_dict[keysList[0]].dev)
-        filter_appl.generateFilter(Fc_hp=20, Fc_lp=500)
+            plotter_app = QtWidgets.QApplication.instance()
+            if not plotter_app:
+                plotter_app = QtWidgets.QApplication(sys.argv)
 
-        window1 = PlottingGUI(plotter_format = PlotterFormat.signal_viewer,
-                                  figurename = self.device_dict[keysList[0]].dev_name, 
-                                  device = self.device_dict[keysList[0]].dev, 
-                                  channel_selection = [0, 1, 2],
-                                  filter_app = filter_appl)
-        window1.show()
+            filter_appl = filters.RealTimeFilter(self.device_dict[key].dev)
+            filter_appl.generateFilter(Fc_hp=20, Fc_lp=500)
 
-        plotter_app.exec_()
-        del plotter_app
+            window1 = PlottingGUI(plotter_format = PlotterFormat.signal_viewer,
+                                    figurename = self.device_dict[key].dev_name, 
+                                    device = self.device_dict[key].dev, 
+                                    channel_selection = [1, 12],
+                                    filter_app = filter_appl)
+            window1.show()
+            plotter_app.exec_()
+            del plotter_app
 
         
-        plotter_app = QtWidgets.QApplication.instance()
-        if not plotter_app:
-            plotter_app = QtWidgets.QApplication(sys.argv)
+        # plotter_app = QtWidgets.QApplication.instance()
+        # if not plotter_app:
+        #     plotter_app = QtWidgets.QApplication(sys.argv)
 
-        filter_appl = filters.RealTimeFilter(self.device_dict[keysList[1]].dev)
-        filter_appl.generateFilter(Fc_hp=20, Fc_lp=500)
+        # filter_appl = filters.RealTimeFilter(self.device_dict[keysList[1]].dev)
+        # filter_appl.generateFilter(Fc_hp=20, Fc_lp=500)
 
-        window1 = PlottingGUI(plotter_format = PlotterFormat.signal_viewer,
-                                  figurename = self.device_dict[keysList[1]].dev_name, 
-                                  device = self.device_dict[keysList[1]].dev, 
-                                  channel_selection = [0, 1, 2],
-                                  filter_app = filter_appl)
-        window1.show()
+        # window1 = PlottingGUI(plotter_format = PlotterFormat.signal_viewer,
+        #                           figurename = self.device_dict[keysList[1]].dev_name, 
+        #                           device = self.device_dict[keysList[1]].dev, 
+        #                           channel_selection = [0, 1, 2],
+        #                           filter_app = filter_appl)
+        # window1.show()
 
-        plotter_app.exec_()
+        # plotter_app.exec_()
 
         # Quit and delete the Plotter application
         QtWidgets.QApplication.quit()
-        del plotter_app
         self.vis_sig_button.config(bg = "green")
         
 
 
     def start_heatmap(self):
         grid_type = '8-8-L'
-        keysList = list(self.device_dict.keys())
-        plotter_app = QtWidgets.QApplication.instance()
-        if not plotter_app:
-            plotter_app = QtWidgets.QApplication(sys.argv)
+
+        for key in self.device_dict.keys():
+
+            plotter_app = QtWidgets.QApplication.instance()
+            if not plotter_app:
+                plotter_app = QtWidgets.QApplication(sys.argv)
 
 
-        window1 = PlottingGUI(plotter_format = PlotterFormat.heatmap,
-                                    figurename = self.device_dict[keysList[0]].dev_name, 
-                                    device = self.device_dict[keysList[0]].dev,
-                                    tail_orientation = 'down', 
-                                    signal_lim = 150,
-                                    grid_type = grid_type)
-        window1.show()
+            window1 = PlottingGUI(plotter_format = PlotterFormat.heatmap,
+                                        figurename = self.device_dict[key].dev_name, 
+                                        device = self.device_dict[key].dev,
+                                        tail_orientation = 'down', 
+                                        signal_lim = 150,
+                                        grid_type = grid_type)
+            window1.show()
 
-        plotter_app.exec_()
-        del plotter_app
-
-        
-        plotter_app = QtWidgets.QApplication.instance()
-        if not plotter_app:
-            plotter_app = QtWidgets.QApplication(sys.argv)
-
-
-        window1 = PlottingGUI(plotter_format = PlotterFormat.heatmap,
-                                    figurename = self.device_dict[keysList[1]].dev_name, 
-                                    device = self.device_dict[keysList[1]].dev,
-                                    tail_orientation = 'down', 
-                                    signal_lim = 150,
-                                    grid_type = grid_type)
-        window1.show()
-
-        plotter_app.exec_()
+            plotter_app.exec_()
+            del plotter_app
 
         # Quit and delete the Plotter application
         QtWidgets.QApplication.quit()
-        del plotter_app
         self.vis_heatmap_button.config(bg = "green")
         
     def start_stream(self):
         self.start_stream_button.config(bg = "green")
         self.stop_button.config(bg = "yellow")
-        keysList = list(self.device_dict.keys())
-        stream_1 = FileWriter(FileFormat.lsl, self.device_dict[keysList[0]].dev_name)
-        stream_1.open(self.device_dict[keysList[0]].dev)
+        for key in self.device_dict.keys():
+            stream = FileWriter(FileFormat.lsl, self.device_dict[key].dev_name)
+            stream.open(self.device_dict[key].dev)
 
-        stream_2 = FileWriter(FileFormat.lsl, self.device_dict[keysList[1]].dev_name)
-        stream_2.open(self.device_dict[keysList[1]].dev)
-
-        self.device_dict[keysList[1]].dev.start_measurement()
-        self.device_dict[keysList[0]].dev.start_measurement()
+        # stream_2 = FileWriter(FileFormat.lsl, self.device_dict[keysList[1]].dev_name)
+        # stream_2.open(self.device_dict[keysList[1]].dev)
+        for key in self.device_dict.keys():
+            self.device_dict[key].dev.start_measurement()
         
         
     def start_dumping(self):
@@ -388,27 +375,26 @@ class TMSi_GUI(tk.Toplevel):
         # self.device_dict[keysList[0]].dev.start_measurement()
 
     def imp_plot(self):
-        keysList = list(self.device_dict.keys())
-        plotter_app = QtWidgets.QApplication.instance()
-        if not plotter_app:
-            plotter_app = QtWidgets.QApplication(sys.argv)
-        window1 = PlottingGUI(plotter_format = PlotterFormat.impedance_viewer,
-                             figurename =  self.device_dict[keysList[0]].dev_name, 
-                             device = self.device_dict[keysList[0]].dev, 
-                             layout = 'grid')
-        window1.show()
-        plotter_app.exec_()
-        del plotter_app
-        plotter_app = QtWidgets.QApplication.instance()
-        if not plotter_app:
-            plotter_app = QtWidgets.QApplication(sys.argv)
-        window2 = PlottingGUI(plotter_format = PlotterFormat.impedance_viewer,
-                             figurename =  self.device_dict[keysList[1]].dev_name, 
-                             device = self.device_dict[keysList[1]].dev, 
-                             layout = 'grid')
-        window2.show()
-        plotter_app.exec_()
-        del plotter_app
+        for key in self.device_dict.keys():
+            plotter_app = QtWidgets.QApplication.instance()
+            if not plotter_app:
+                plotter_app = QtWidgets.QApplication(sys.argv)
+            window1 = PlottingGUI(plotter_format = PlotterFormat.impedance_viewer,
+                                figurename =  self.device_dict[key].dev_name, 
+                                device = self.device_dict[key].dev, 
+                                layout = 'grid')
+            window1.show()
+            plotter_app.exec_()
+            del plotter_app
+        # plotter_app = QtWidgets.QApplication.instance()
+        # if not plotter_app:
+        #     plotter_app = QtWidgets.QApplication(sys.argv)
+        # window2 = PlottingGUI(plotter_format = PlotterFormat.impedance_viewer,
+        #                      figurename =  self.device_dict[keysList[1]].dev_name, 
+        #                      device = self.device_dict[keysList[1]].dev, 
+        #                      layout = 'grid')
+        # window2.show()
+        # plotter_app.exec_()
         self.imp_plot_button.config(bg = "green")
         
 
@@ -419,9 +405,9 @@ class TMSi_GUI(tk.Toplevel):
         self.start_stream_button.config(bg = "yellow")
         self.stop_button.config(bg = "red")
 
-        keysList = list(self.device_dict.keys())
-        self.device_dict[keysList[0]].term_tmsi()
-        self.device_dict[keysList[1]].term_tmsi()
+        for key in self.device_dict.keys():
+            self.device_dict[key].term_tmsi()
+            # self.device_dict[keysList[1]].term_tmsi()
         showinfo(title='Information', message='Streaming has stopped. \nMay need to restart GUI')
 
 

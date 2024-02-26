@@ -986,52 +986,54 @@ class APP(tk.Toplevel):
         start_time = time.time()
         trial_num = self.trial_ID.get()
         dump_path = self.dump_path.get()
-        keysList = list(self.tmsi_dev.keys())
-
-        self.stream_1 = FileWriter(FileFormat.lsl, self.tmsi_dev[keysList[0]].dev_name)
-        self.stream_1.open(self.tmsi_dev[keysList[0]].dev)
+        self.streams = {}
+        self.file_writers = {}
+        for key in self.tmsi_dev.keys():
+            self.streams[key] = FileWriter(FileFormat.lsl, self.tmsi_dev[key].dev_name)
+            self.streams[key].open(self.tmsi_dev[key].dev)
         
-        self.stream_2 = FileWriter(FileFormat.lsl, self.tmsi_dev[keysList[1]].dev_name)
-        self.stream_2.open(self.tmsi_dev[keysList[1]].dev)
-        if flag != "no_rec" and flag == "MVC":
-            save_path1 = os.path.join(dump_path,'trial_MVC_'+str(start_time)+'_'+keysList[0]+'.poly5')
-            save_path2 = os.path.join(dump_path,'trial_MVC_'+str(start_time)+'_'+keysList[1]+'.poly5')
-            self.file_writer1 = FileWriter(FileFormat.poly5, save_path1)
-            self.file_writer1.open(self.tmsi_dev[keysList[0]].dev)
-            self.file_writer2 = FileWriter(FileFormat.poly5, save_path2)
-            self.file_writer2.open(self.tmsi_dev[keysList[1]].dev)
-        
-        elif flag != "no_rec" and flag == "check":
-            save_path1 = os.path.join(dump_path,'MEPs',str(start_time)+'_'+keysList[0]+'.poly5')
-            save_path2 = os.path.join(dump_path,'MEPs',str(start_time)+'_'+keysList[1]+'.poly5')
-            self.file_writer1 = FileWriter(FileFormat.poly5, save_path1)
-            self.file_writer1.open(self.tmsi_dev[keysList[0]].dev)
-            self.file_writer2 = FileWriter(FileFormat.poly5, save_path2)
-            self.file_writer2.open(self.tmsi_dev[keysList[1]].dev)
-        
+        # self.stream_2 = FileWriter(FileFormat.lsl, self.tmsi_dev[keysList[1]].dev_name)
+        # self.stream_2.open(self.tmsi_dev[keysList[1]].dev)
+            if flag != "no_rec" and flag == "MVC":
+                save_path = os.path.join(dump_path,'trial_MVC_'+str(start_time)+'_'+key+'.poly5')
+                # save_path2 = os.path.join(dump_path,'trial_MVC_'+str(start_time)+'_'+keysList[1]+'.poly5')
+                self.file_writers[key] = FileWriter(FileFormat.poly5, save_path)
+                self.file_writers[key].open(self.tmsi_dev[key].dev)
+                # self.file_writer2 = FileWriter(FileFormat.poly5, save_path2)
+                # self.file_writer2.open(self.tmsi_dev[keysList[1]].dev)
             
-        elif flag != "no_rec" and flag == "rec":
-            save_path1 = os.path.join(dump_path,'trial_'+str(trial_num)+'_'+str(start_time)+'_'+keysList[0]+'.poly5')
-            save_path2 = os.path.join(dump_path,'trial_'+str(trial_num)+'_'+str(start_time)+'_'+keysList[1]+'.poly5')
-            self.file_writer1 = FileWriter(FileFormat.poly5, save_path1)
-            self.file_writer1.open(self.tmsi_dev[keysList[0]].dev)
-            self.file_writer2 = FileWriter(FileFormat.poly5, save_path2)
-            self.file_writer2.open(self.tmsi_dev[keysList[1]].dev)
+            elif flag != "no_rec" and flag == "check":
+                save_path = os.path.join(dump_path,'MEPs',str(start_time)+'_'+key+'.poly5')
+                # save_path2 = os.path.join(dump_path,'MEPs',str(start_time)+'_'+keysList[1]+'.poly5')
+                self.file_writers[key] = FileWriter(FileFormat.poly5, save_path)
+                self.file_writers[key].open(self.tmsi_dev[key].dev)
+                # self.file_writer2 = FileWriter(FileFormat.poly5, save_path2)
+                # self.file_writer2.open(self.tmsi_dev[keysList[1]].dev)
             
-        self.tmsi_dev[keysList[0]].dev.start_measurement()
-        self.tmsi_dev[keysList[1]].dev.start_measurement()
+                
+            elif flag != "no_rec" and flag == "rec":
+                save_path = os.path.join(dump_path,'trial_'+str(trial_num)+'_'+str(start_time)+'_'+key+'.poly5')
+                # save_path2 = os.path.join(dump_path,'trial_'+str(trial_num)+'_'+str(start_time)+'_'+keysList[1]+'.poly5')
+                self.file_writers[key] = FileWriter(FileFormat.poly5, save_path)
+                self.file_writers[key].open(self.tmsi_dev[key].dev)
+                # self.file_writer2 = FileWriter(FileFormat.poly5, save_path2)
+                # self.file_writer2.open(self.tmsi_dev[keysList[1]].dev)
+                
+            self.tmsi_dev[key].dev.start_measurement()
+            # self.tmsi_dev[keysList[1]].dev.start_measurement()
         time.sleep(0.5)
 
     def stop_tmsi(self,flag='rec'):
         keysList = list(self.tmsi_dev.keys())
-        if flag == "rec":
-            self.file_writer1.close()
-            self.file_writer2.close()
-        self.stream_1.close()
-        self.stream_2.close()
-        time.sleep(0.5)
-        self.tmsi_dev[keysList[0]].dev.stop_measurement()
-        self.tmsi_dev[keysList[1]].dev.stop_measurement()
+        for key in self.tmsi_dev.keys():
+            if flag == "rec":
+                self.file_writers[key].close()
+                # self.file_writer2.close()
+            self.streams[key].close()
+            # self.stream_2.close()
+            time.sleep(0.5)
+            self.tmsi_dev[key].dev.stop_measurement()
+            # self.tmsi_dev[keysList[1]].dev.stop_measurement()
 
     def get_MVC(self):
         self.task_trial.write(False)

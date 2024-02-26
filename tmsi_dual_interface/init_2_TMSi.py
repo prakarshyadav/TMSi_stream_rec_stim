@@ -62,21 +62,6 @@ class tmsi_start(object):
             if (e.code == TMSiErrorCode.device_error) :
                 print("  => device error : ", hex(self.dev.status.error))
                 DeviceErrorLookupTable(hex(self.dev.status.error))
-        #     # Create the device object to interface with the SAGA-system.
-        #     self.dev = tmsi_device.create(tmsi_device.DeviceType.saga, DeviceInterfaceType.docked, DeviceInterfaceType.usb)
-        #     # Find and open a connection to the SAGA-system and print its serial number
-        #     self.dev.open()
-        #     # Load the EEG channel set and configuration
-        #     if self.dev.config.num_channels<64:
-        #         cfg = get_config("saga_config_32UNI")
-        #     else:
-        #         cfg = get_config("saga_config_64UNI")
-        #     self.dev.load_config(cfg)
-        # except TMSiError as e:
-        #     print("!!! TMSiError !!! : ", e.code)
-        #     if (e.code == TMSiErrorCode.device_error) :
-        #         print("  => device error : ", hex(self.dev.status.error))
-        #         DeviceErrorLookupTable(hex(self.dev.status.error))
         return None
 
     def plot_imp(self, ):
@@ -205,25 +190,29 @@ def initialize_a_device(id):
     return dev
 
 def assign_devices(label_1, label_2):
-    
-    dev_1 = initialize_a_device(0)
-    dev_2 = initialize_a_device(1)
-    
-    if dev_1.dev_serial < dev_2.dev_serial:
-        dev_1.dev_name = label_1
-        dev_2.dev_name = label_2
-        device_dict = {label_1:dev_1,
-                       label_2:dev_2,
-                        }
-    elif dev_1.dev_serial > dev_2.dev_serial:
-        dev_1.dev_name = label_2
-        dev_2.dev_name = label_1
-        device_dict = {label_1:dev_2,
-                       label_2:dev_1,
-                        }
+
+    if label_2 != 'None':
+        dev_1 = initialize_a_device(0)
+        dev_2 = initialize_a_device(1)
+        if dev_1.dev_serial < dev_2.dev_serial:
+            dev_1.dev_name = label_1
+            dev_2.dev_name = label_2
+            device_dict = {label_1:dev_1,
+                        label_2:dev_2,
+                            }
+        elif dev_1.dev_serial > dev_2.dev_serial:
+            dev_1.dev_name = label_2
+            dev_2.dev_name = label_1
+            device_dict = {label_1:dev_2,
+                        label_2:dev_1,
+                            }
+        else:
+            print("Big OOPS! Devices have same serial?")
+            raise Exception
     else:
-        print("Big OOPS! Devices have same serial?")
-        raise Exception
+        dev_1 = initialize_a_device(0)
+        dev_1.dev_name = label_1
+        device_dict = {label_1:dev_1}
     return device_dict
 
 if __name__ == "__main__":
