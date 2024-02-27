@@ -71,22 +71,27 @@ class TMSi_GUI(tk.Toplevel):
         self.c1 = tk.Checkbutton(self, text='GRID',variable=self.grid_check, onvalue=1, offvalue=0, command= self.set_grid)
         self.c1.pack()
         self.c1.place(x=300, y=90)
+        self.grid_check.set(1)
 
         self.c2 = tk.Checkbutton(self, text='BIP',variable=self.BIP_check, onvalue=1, offvalue=0, command=self.set_bip)
         self.c2.pack()
         self.c2.place(x=300, y=110)
+        self.BIP_check.set(1)
 
         self.c3 = tk.Checkbutton(self, text='AUX',variable=self.AUX_check, onvalue=1, offvalue=0, command=self.set_aux)
         self.c3.pack()
         self.c3.place(x=300, y=130)
+        self.AUX_check.set(1)
 
         self.c4 = tk.Checkbutton(self, text='Sample rate',variable=self.fs_check, onvalue=1, offvalue=0, command=self.set_fs)
         self.c4.pack()
         self.c4.place(x=300, y=150)
+        self.fs_check.set(1)
 
         self.c5 = tk.Checkbutton(self, text='Triggers',variable=self.trig_check, onvalue=1, offvalue=0, command= self.set_trig)
         self.c5.pack()
         self.c5.place(x=300, y=170)
+        self.trig_check.set(1)
 
 
         self.grid_num = tk.StringVar()
@@ -184,6 +189,8 @@ class TMSi_GUI(tk.Toplevel):
         # self.stop_button['command'] = self.stop_recording
         # self.stop_button.pack()
         # self.stop_button.place(x=210, y=350)
+        self.set_aux()
+        self.set_bip()
 
     def push_tmsi(self):
         self.destroy()

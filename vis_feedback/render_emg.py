@@ -86,6 +86,7 @@ class check_MEPs_win(tk.Toplevel):
         self.trig_holder = deque(list(np.empty(self.vis_buffer_len,dtype= bool)))
         self.stim_profile_x = stim_profile_x
         self.x_axis = np.linspace(0,1,self.vis_buffer_len)
+        self.kill = False
 
         self.attributes('-fullscreen', True)
         self.title('Force Visualization')
@@ -167,6 +168,13 @@ class check_MEPs_win(tk.Toplevel):
         self.stream_vis_button['command'] = self.start_vis
         self.stream_vis_button.pack()
         self.stream_vis_button.place(x=100, y=100)
+
+        self.stream_vis_button = tk.Button(self, text='STOP TRIAL', bg ='red')
+        self.stream_vis_button['command'] = self.stop_vis
+        self.stream_vis_button.pack()
+        self.stream_vis_button.place(x=100, y=150)
+
+
         print("finding stream")
         stream = pylsl.resolve_stream('name', dev_select)
         for info in stream:
@@ -176,7 +184,11 @@ class check_MEPs_win(tk.Toplevel):
             print('type: ', info.type())
         self.inlet = DataInlet(stream[0])    
         self.inlet_STA = DataInlet_reset(stream[0])    
-        
+    def stop_vis(self):
+        self.kill = True
+        self.destroy()
+
+
     def start_vis(self):
         if self.rec_flag:
             self.task_stim.write(False)
@@ -212,7 +224,7 @@ class check_MEPs_win(tk.Toplevel):
         data_STA = self.inlet_STA.pull_and_plot()#
         if stim_ctr<len(self.stim_profile_x)-1:
             curr_pulse_time = self.stim_profile_x[stim_ctr]
-        while time.time()-t0 < self.trial_params['duration']:
+        while time.time()-t0 < self.trial_params['duration'] and not self.kill:
             time.sleep(0.0001)
             self.trig_holder.popleft()
             
@@ -247,13 +259,20 @@ class check_MEPs_win(tk.Toplevel):
                     y_MEP = max(0.05,np.max(np.abs(plot_data)))
                     self.check_MEP_fig.set_ylim([-y_MEP*1.1,y_MEP*1.1])
                     self.vis_MEP[0].set_data(self.x_axis_MEP,plot_data)
-                    self.stim_line_sd_U.set_segments([np.array([[SD_bound, self.trial_params['MEP_winL']], [SD_bound,self.trial_params['MEP_winU']]])])
-                    self.stim_line_sd_L.set_segments([np.array([[-SD_bound, self.trial_params['MEP_winL']], [-SD_bound,self.trial_params['MEP_winU']]])])
+                    self.stim_line_sd_U.remove()
+                    self.stim_line_sd_U = self.check_MEP_fig.hlines(SD_bound*5.5,self.trial_params['MEP_winL'],self.trial_params['MEP_winU'], linewidth = 1, color = 'k', alpha =0.5)
+                    #set_segments([np.array([[SD_bound, self.trial_params['MEP_winL']], [SD_bound,self.trial_params['MEP_winU']]])])
+                    self.stim_line_sd_L.remove()
+                    self.stim_line_sd_L = self.check_MEP_fig.hlines(-SD_bound*5.5,self.trial_params['MEP_winL'],self.trial_params['MEP_winU'], linewidth = 1, color = 'k', alpha =0.5)
+
+                    #set_segments([np.array([[-SD_bound, self.trial_params['MEP_winL']], [-SD_bound,self.trial_params['MEP_winU']]])])
+
                     p2p_amp = np.max(plot_data) - np.min(plot_data)
                     self.MEP_amp.set_text("P2P: "+str(abs(np.float16(p2p_amp))))
                     # plot_data = np.abs(np.diff(trigs))
                     # self.check_MEP_fig.set_xlim([0,1])
-                    # self.check_MEP_fig.set_ylim([-0.5,1.5])
+                    max_val =  max(SD_bound*6, np.max(np.abs(plot_data)*1.1))
+                    self.check_MEP_fig.set_ylim([-max_val,max_val])
                     # self.vis_MEP[0].set_data(np.linspace(0,1,plot_data.shape[0]),plot_data)
                     self.canvas_check_MEP_fig.draw()
                 else:
@@ -310,6 +329,7 @@ class display_force_data(tk.Toplevel):
         self.trig_holder = deque(list(np.empty(self.vis_buffer_len,dtype= bool)))
         self.stim_profile_x = stim_profile_x
         self.x_axis = np.linspace(0,1,self.vis_buffer_len)
+        self.kill = False
 
         self.attributes('-fullscreen', True)
         self.title('Force Visualization')
@@ -355,6 +375,11 @@ class display_force_data(tk.Toplevel):
         self.stream_vis_button['command'] = self.start_vis
         self.stream_vis_button.pack()
         self.stream_vis_button.place(x=100, y=100)
+        self.stream_vis_button = tk.Button(self, text='STOP TRIAL', bg ='red')
+        self.stream_vis_button['command'] = self.stop_vis
+        self.stream_vis_button.pack()
+        self.stream_vis_button.place(x=100, y=150)
+
         print("finding stream")
         stream = pylsl.resolve_stream('name', dev_select)
         for info in stream:
@@ -363,8 +388,11 @@ class display_force_data(tk.Toplevel):
             print('sampling rate:', info.nominal_srate())
             print('type: ', info.type())
         self.inlet = DataInlet(stream[0])    
-        self.inlet_STA = DataInlet(stream[0])    
         
+    def stop_vis(self):
+        self.kill = True
+        self.destroy()
+
     def start_vis(self):
         if self.rec_flag:
             self.task_stim.write(False)
@@ -395,7 +423,7 @@ class display_force_data(tk.Toplevel):
         curr_pulse_time = 1e16
         if stim_ctr<len(self.stim_profile_x)-1:
             curr_pulse_time = self.stim_profile_x[stim_ctr]
-        while time.time()-t0 < self.trial_params['duration']:
+        while time.time()-t0 < self.trial_params['duration'] and not self.kill:
             time.sleep(0.0001)
             self.trig_holder.popleft()
             

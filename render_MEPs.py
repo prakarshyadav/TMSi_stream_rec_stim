@@ -78,7 +78,7 @@ def gen_MEP_vis(args):
     if len(data)>67:
         f_aux = data[64:-3,:].T
     event_dict = segment_trigs(f_trigs)
-    # f_grid = np.repeat(f_aux,64,axis = 1)+np.random.normal(0,0.1,(64860,64))
+    f_grid = np.repeat(f_aux,64,axis = 1)+np.random.normal(0,0.1,(303855,64))
     
     s_ms_factor = args.fs/1000
     plot_data_dict = np.empty((len(event_dict['stims']), int((args.vis_win_L+args.vis_win_U)*s_ms_factor),f_grid.shape[1]))
@@ -96,25 +96,27 @@ def gen_MEP_vis(args):
     ctr = 0
     for i in range(rows):
         for j in range(cols):
-            mean_sig = np.mean(np.mean(plot_data_dict[:,:,ctr],axis = 0),axis = 1)
-            std_sig = np.mean(trial_SD[:,ctr],axis = 0)
+            for k in range(plot_data_dict.shape[0]):
+                axes[i][j].plot(x_axis, plot_data_dict[k,:,ctr], alpha = 0.5, linewidth = 0.5)
+            mean_sig = np.mean(plot_data_dict[:,:,ctr],axis = 0)
+            std_sig = np.std(plot_data_dict[:,:,ctr],axis = 0)
+            std_base = np.mean(trial_SD[:,ctr],axis = 0)
             yerr = mean_sig + std_sig
             axes[i][j].axvline(x=0, ymin=0.0, ymax=1.0, color='k')
             axes[i][j].axvline(x=20, ymin=0.0, ymax=1.0, color='c',alpha = 0.25)
 
-            axes[i][j].axhline(y=-yerr, xmin=0.0, xmax=1.0, color='c',alpha = 0.25)
-            axes[i][j].axhline(y=yerr, xmin=0.0, xmax=1.0, color='c',alpha = 0.25)
+            axes[i][j].axhline(y=-std_base*5.5, xmin=0.0, xmax=1.0, color='k',alpha = 0.25)
+            axes[i][j].axhline(y=std_base*5.5, xmin=0.0, xmax=1.0, color='k',alpha = 0.25)
 
-            for k in range(plot_data_dict.shape[0]):
-                axes[i][j].plot(x_axis, plot_data_dict[k,:,ctr], alpha = 0.5)
             ctr+=1
             axes[i][j].plot(x_axis, mean_sig,c='k',alpha = 0.75)
-            axes[i][j].fill_between(x_axis, -yerr,yerr,color='k',alpha = 0.05)
+            axes[i][j].fill_between(x_axis, -yerr,yerr,color='k',alpha = 0.2)
             # axes[i][j].fill_between(x_axis, mean_sig, yerr,color='k',alpha = 0.05)
             axes[i][j].set_xlim([-args.vis_win_L,args.vis_win_U])
             # axes[i][j].get_xaxis().set_visible(False) # Hide tick marks and spines
             axes[i][j].spines["right"].set_visible(False)
             axes[i][j].spines["top"].set_visible(False)
+            max_val =  max(std_base*6, max_val)
             axes[i][j].set_ylim([-max_val,max_val])
             axes[i][j].set_xticks(np.linspace(-args.vis_win_L,args.vis_win_U,7,dtype = int))
             axes[i][j].set_xticklabels(axes[i][j].get_xticks(), rotation = 45)
@@ -152,10 +154,10 @@ if __name__ == "__main__":
     parser.add_argument('--exp_date',default=today, type=str,
                         help= "Data directory")
     
-    parser.add_argument('--MEP',default=False, type=bool,
+    parser.add_argument('--MEP',default=True, type=bool,
                         help= "Is the file an MEP scan")
     
-    parser.add_argument('--fname',default="trial_1_1708716139.1440296_EXT-20240223_142219", type=str,
+    parser.add_argument('--fname',default="1709056177.3406796_FLX-20240227_124937", type=str,
                         help= "File name of the trial")
     
 
