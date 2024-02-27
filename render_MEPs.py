@@ -82,10 +82,12 @@ def gen_MEP_vis(args):
     
     s_ms_factor = args.fs/1000
     plot_data_dict = np.empty((len(event_dict['stims']), int((args.vis_win_L+args.vis_win_U)*s_ms_factor),f_grid.shape[1]))
+    trial_SD = np.empty((len(event_dict['stims']), f_grid.shape[1]))
     for i, event_idx in enumerate(event_dict['stims']):
         event_data = f_grid[int(event_idx-args.vis_win_L*s_ms_factor):int(event_idx+args.vis_win_U*s_ms_factor),:]
         event_data[int((args.vis_win_L-args.blank_win_L)*s_ms_factor):int((args.vis_win_L+args.blank_win_U)*s_ms_factor),:] = np.zeros((int((args.blank_win_L+args.blank_win_U)*s_ms_factor),event_data.shape[1]))
         plot_data_dict[i,:,:] = event_data
+        trial_SD[i,:] = np.std(f_grid[int(event_idx-1050):int(event_idx-50),:],axis = 0)
     
     rows = 8; cols =8
     fig, axes = plt.subplots(nrows=rows, ncols=cols, figsize=(25, 25))
@@ -94,17 +96,21 @@ def gen_MEP_vis(args):
     ctr = 0
     for i in range(rows):
         for j in range(cols):
-            mean_sig = np.mean(np.mean(plot_data_dict,axis = 0),axis = 1)
-            std_sig = np.std(np.std(plot_data_dict,axis = 0),axis = 1)
+            mean_sig = np.mean(np.mean(plot_data_dict[:,:,ctr],axis = 0),axis = 1)
+            std_sig = np.mean(trial_SD[:,ctr],axis = 0)
             yerr = mean_sig + std_sig
             axes[i][j].axvline(x=0, ymin=0.0, ymax=1.0, color='k')
             axes[i][j].axvline(x=20, ymin=0.0, ymax=1.0, color='c',alpha = 0.25)
-            axes[i][j].axhline(y=0, xmin=0.0, xmax=1.0, color='c',alpha = 0.25)
+
+            axes[i][j].axhline(y=-yerr, xmin=0.0, xmax=1.0, color='c',alpha = 0.25)
+            axes[i][j].axhline(y=yerr, xmin=0.0, xmax=1.0, color='c',alpha = 0.25)
+
             for k in range(plot_data_dict.shape[0]):
                 axes[i][j].plot(x_axis, plot_data_dict[k,:,ctr], alpha = 0.5)
             ctr+=1
             axes[i][j].plot(x_axis, mean_sig,c='k',alpha = 0.75)
-            axes[i][j].fill_between(x_axis, mean_sig,yerr,color='k',alpha = 0.05)
+            axes[i][j].fill_between(x_axis, -yerr,yerr,color='k',alpha = 0.05)
+            # axes[i][j].fill_between(x_axis, mean_sig, yerr,color='k',alpha = 0.05)
             axes[i][j].set_xlim([-args.vis_win_L,args.vis_win_U])
             # axes[i][j].get_xaxis().set_visible(False) # Hide tick marks and spines
             axes[i][j].spines["right"].set_visible(False)

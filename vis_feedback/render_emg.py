@@ -140,15 +140,18 @@ class check_MEPs_win(tk.Toplevel):
         self.disp_target.set_xlabel("Time (s)", fontsize=14)
         self.disp_target.set_ylabel("Torque (Nm)", fontsize=14)
         self.check_MEP_fig.set_xlabel("Time (ms)", fontsize=14)
-        self.check_MEP_fig.set_ylabel("EMG (uV)", fontsize=14)
+        self.check_MEP_fig.set_ylabel("EMG (mV)", fontsize=14)
 
         self.l_target = self.disp_target.plot(target_profile_x, target_profile_y, linewidth = 50, color = 'r')
         self.l_current = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 13, color = 'b',)
         
         self.x_axis_MEP = np.linspace(self.trial_params['MEP_winL'],self.trial_params['MEP_winU'],(self.trial_params['MEP_winU'] - self.trial_params['MEP_winL'])*2)#
-        self.stim_line = self.check_MEP_fig.vlines(0,-1000,1000, linewidth = 3, color = 'k')
-        self.stim_line = self.check_MEP_fig.vlines(20,-1000,1000, linewidth = 1, color = 'c')
-        self.stim_line = self.check_MEP_fig.hlines(0,self.trial_params['MEP_winL'],self.trial_params['MEP_winU'], linewidth = 1, color = 'c')
+        self.stim_line_y0 = self.check_MEP_fig.vlines(0,-1000,1000, linewidth = 3, color = 'k')
+        self.stim_line_20 = self.check_MEP_fig.vlines(20,-1000,1000, linewidth = 1, color = 'c')
+        self.stim_line_x0 = self.check_MEP_fig.hlines(0,self.trial_params['MEP_winL'],self.trial_params['MEP_winU'], linewidth = 0.5, color = 'c')
+        self.stim_line_sd_U = self.check_MEP_fig.hlines(0.1,self.trial_params['MEP_winL'],self.trial_params['MEP_winU'], linewidth = 1, color = 'k', alpha =0.5)
+        self.stim_line_sd_L = self.check_MEP_fig.hlines(-0.1,self.trial_params['MEP_winL'],self.trial_params['MEP_winU'], linewidth = 1, color = 'k',alpha = 0.5)
+        self.MEP_amp = self.check_MEP_fig.text(0,0,'MEP: '+str(0))
         self.vis_MEP = self.check_MEP_fig.plot(self.x_axis_MEP, np.zeros_like(self.x_axis_MEP), linewidth = 2, color = 'r',)
         
         self.disp_target.set_xlim([0,self.trial_params['duration']])
@@ -238,12 +241,16 @@ class check_MEPs_win(tk.Toplevel):
                         data_STA_filt = sosfilt(sos_raw, data_STA[:,self.vis_chan_slice_check].T)
                     data_STA_scaled = np.nan_to_num(data_STA_filt,nan=0,posinf=0,neginf=0).reshape(-1)
                     plot_data = data_STA_scaled[plot_event_idx[-2]+self.trial_params['MEP_winL']*2:plot_event_idx[-2]+self.trial_params['MEP_winU']*2]
+                    SD_bound = np.std(data_STA_scaled[plot_event_idx[-2]-1050:plot_event_idx[-2]-50])
                     l_cut = 4; u_cut = 10
                     plot_data[abs(self.trial_params['MEP_winL']*2)-l_cut:abs(self.trial_params['MEP_winL']*2)+u_cut] = np.zeros(l_cut+u_cut)
-                    y_MEP = np.max(np.abs(plot_data))
+                    y_MEP = max(0.05,np.max(np.abs(plot_data)))
                     self.check_MEP_fig.set_ylim([-y_MEP*1.1,y_MEP*1.1])
                     self.vis_MEP[0].set_data(self.x_axis_MEP,plot_data)
-
+                    self.stim_line_sd_U.set_segments([np.array([[SD_bound, self.trial_params['MEP_winL']], [SD_bound,self.trial_params['MEP_winU']]])])
+                    self.stim_line_sd_L.set_segments([np.array([[-SD_bound, self.trial_params['MEP_winL']], [-SD_bound,self.trial_params['MEP_winU']]])])
+                    p2p_amp = np.max(plot_data) - np.min(plot_data)
+                    self.MEP_amp.set_text("P2P: "+str(abs(np.float16(p2p_amp))))
                     # plot_data = np.abs(np.diff(trigs))
                     # self.check_MEP_fig.set_xlim([0,1])
                     # self.check_MEP_fig.set_ylim([-0.5,1.5])
@@ -520,7 +527,7 @@ class APP(tk.Toplevel):
         self.lbl_daq_name.pack(fill='x', expand=True)
         self.lbl_daq_name.place(x=10, y=100)
         self.t_daq_name = tk.Entry(self, textvariable=self.daq_name)
-        self.t_daq_name.insert(0, "Dev4")
+        self.t_daq_name.insert(0, "Dev3")
         self.t_daq_name.pack(fill='x', expand=True)
         self.t_daq_name.focus()
         self.t_daq_name.place(x=150, y=100, width = 100)
