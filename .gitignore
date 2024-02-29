@@ -6,6 +6,7 @@ tmsi_dual_interface/tmsi_libraries_v4
 *.c3d
 *.csv
 *.pkl
+*.json
 *.png
 *.pth
 # Byte-compiled / optimized / DLL files

@@ -1,4 +1,4 @@
-import argparse, sys, os, glob, time
+import argparse, sys, os, glob, time, json
 from scipy.signal import butter, filtfilt, iirnotch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -57,29 +57,8 @@ def segment_trigs(trigs):
     stim_idx['stims'] = events[1:]
     return stim_idx
 
-def plot_grid(data):
-    return
-
-def gen_MEP_vis(args):
-    if args.MEP:
-        file_path = os.path.join(args.data_dir,args.particiapnt_ID, args.exp_date, 'MEPs', args.fname)
-        out_path = os.path.join(args.data_dir,args.particiapnt_ID, args.exp_date, 'MEPs','plots')
-    else:
-        file_path = os.path.join(args.data_dir,args.particiapnt_ID, args.exp_date, args.fname)
-        out_path = os.path.join(args.data_dir,args.particiapnt_ID, args.exp_date,'plots')
-
-    if not os.path.isdir(out_path):
-        os.makedirs(out_path)
-    
-    data = read_poly(file_path)
-    f_trigs = data[-3,:].T
-    f_grid = data[:64,:]
+def plot_grid(args, f_grid, event_dict, out_path, flag):
     f_grid = filt_GRID(f_grid, fs = args.fs).T
-    if len(data)>67:
-        f_aux = data[64:-3,:].T
-    event_dict = segment_trigs(f_trigs)
-    f_grid = np.repeat(f_aux,64,axis = 1)+np.random.normal(0,0.1,(303855,64))
-    
     s_ms_factor = args.fs/1000
     plot_data_dict = np.empty((len(event_dict['stims']), int((args.vis_win_L+args.vis_win_U)*s_ms_factor),f_grid.shape[1]))
     trial_SD = np.empty((len(event_dict['stims']), f_grid.shape[1]))
@@ -91,6 +70,7 @@ def gen_MEP_vis(args):
     
     rows = 8; cols =8
     fig, axes = plt.subplots(nrows=rows, ncols=cols, figsize=(25, 25))
+    fig.suptitle(flag)
     max_val = np.max(np.abs(plot_data_dict))
     x_axis = np.linspace(-args.vis_win_L,args.vis_win_U,plot_data_dict.shape[1])
     ctr = 0
@@ -121,9 +101,89 @@ def gen_MEP_vis(args):
             axes[i][j].set_xticks(np.linspace(-args.vis_win_L,args.vis_win_U,7,dtype = int))
             axes[i][j].set_xticklabels(axes[i][j].get_xticks(), rotation = 45)
     # axes[-1][0].get_xaxis().set_visible(True) 
-    plt.savefig(os.path.join(out_path,args.fname)+'.png', bbox_inches="tight",dpi = 100)
+    plt.savefig(os.path.join(out_path,flag)+'.png', bbox_inches="tight",dpi = 300)
     # plt.show()
+    return
 
+def plot_aux(args, f_grid, event_dict, out_path, incl_chan, dev_map):
+    f_grid = filt_GRID(f_grid, fs = args.fs).T
+    s_ms_factor = args.fs/1000
+    plot_data_dict = np.empty((len(event_dict['stims']), int((args.vis_win_L+args.vis_win_U)*s_ms_factor),f_grid.shape[1]))
+    trial_SD = np.empty((len(event_dict['stims']), f_grid.shape[1]))
+    for i, event_idx in enumerate(event_dict['stims']):
+        event_data = f_grid[int(event_idx-args.vis_win_L*s_ms_factor):int(event_idx+args.vis_win_U*s_ms_factor),:]
+        event_data[int((args.vis_win_L-args.blank_win_L)*s_ms_factor):int((args.vis_win_L+args.blank_win_U)*s_ms_factor),:] = np.zeros((int((args.blank_win_L+args.blank_win_U)*s_ms_factor),event_data.shape[1]))
+        plot_data_dict[i,:,:] = event_data
+        trial_SD[i,:] = np.std(f_grid[int(event_idx-1050):int(event_idx-50),:],axis = 0)
+
+    if len(incl_chan)%2:
+        rows = int(np.sqrt(len(incl_chan)))+1; cols = int(np.sqrt(len(incl_chan)))
+    else:
+        rows = int(np.sqrt(len(incl_chan))); cols = int(np.sqrt(len(incl_chan)))
+    fig, axes = plt.subplots(nrows=rows, ncols=cols, figsize=(15, 15))
+    fig.suptitle(dev_map["GRID"])
+    x_axis = np.linspace(-args.vis_win_L,args.vis_win_U,plot_data_dict.shape[1])
+    axes = axes.ravel()
+    for i, ax in enumerate(axes):
+        if i <rows+cols:
+            for k in range(plot_data_dict.shape[0]):
+                ax.plot(x_axis, plot_data_dict[k,:,i], alpha = 0.5, linewidth = 0.5)
+            mean_sig = np.mean(plot_data_dict[:,:,i],axis = 0)
+            std_sig = np.std(plot_data_dict[:,:,i],axis = 0)
+            std_base = np.mean(trial_SD[:,i],axis = 0)
+            yerr = mean_sig + std_sig
+            ax.set_title(dev_map[incl_chan[i]])
+            ax.axvline(x=0, ymin=0.0, ymax=1.0, color='k')
+            ax.axvline(x=20, ymin=0.0, ymax=1.0, color='c',alpha = 0.25)
+
+            ax.axhline(y=-std_base*5.5, xmin=0.0, xmax=1.0, color='k',alpha = 0.25)
+            ax.axhline(y=std_base*5.5, xmin=0.0, xmax=1.0, color='k',alpha = 0.25)
+
+            ax.plot(x_axis, mean_sig,c='k',alpha = 0.75)
+            ax.fill_between(x_axis, -yerr,yerr,color='k',alpha = 0.2)
+            ax.set_xlim([-args.vis_win_L,args.vis_win_U])
+            ax.spines["right"].set_visible(False)
+            ax.spines["top"].set_visible(False)
+            max_val =  max(std_base*6, np.max(plot_data_dict[:,:,i]))
+            ax.set_ylim([-max_val,max_val])
+            ax.set_xticks(np.linspace(-args.vis_win_L,args.vis_win_U,7,dtype = int))
+            ax.set_xticklabels(ax.get_xticks(), rotation = 45)
+    plt.savefig(os.path.join(out_path,dev_map["GRID"])+'_AUX.png', bbox_inches="tight",dpi = 300)
+
+def gen_MEP_vis(args):
+
+    with open(os.path.join(args.data_dir,args.particiapnt_ID, args.exp_date,'musclemap.json'), 'r') as j:
+        muscle_map = json.loads(j.read())
+
+    for key in muscle_map.keys():
+        if args.MEP:
+            file_ID, time_ID = args.fname.split('-')
+            file_path = os.path.join(args.data_dir,args.particiapnt_ID, args.exp_date, 'MEPs', key+'-'+time_ID)
+            out_path = os.path.join(args.data_dir,args.particiapnt_ID, args.exp_date, 'MEPs','plots',time_ID)
+        else:
+            file_ID, time_ID = args.fname.split('-')
+            file_path = os.path.join(args.data_dir,args.particiapnt_ID, args.exp_date, file_ID[:-3]+key+'-'+time_ID)
+            out_path = os.path.join(args.data_dir,args.particiapnt_ID, args.exp_date,'plots',time_ID)
+        if not os.path.isdir(out_path):
+            os.makedirs(out_path)
+
+        incl_chan = []
+        for chan in muscle_map[key].keys():
+            if muscle_map[key][chan] != 'N/A':
+                incl_chan.append(chan)
+
+        data = read_poly(file_path)
+        f_trigs = data[-3,:].T
+        event_dict = segment_trigs(f_trigs)
+
+        if len(data)>67 and args.AUX:
+            f_aux = data[64:-3,:]
+            plot_aux(args, f_aux, event_dict, out_path, incl_chan[1:],muscle_map[key])
+
+        if args.GRID:
+            f_grid = data[:64,:]
+            plot_grid(args, f_grid, event_dict, out_path, muscle_map[key]["GRID"])
+        
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -149,6 +209,12 @@ if __name__ == "__main__":
     
     parser.add_argument('--particiapnt_ID',default='PX', type=str,
                         help= "Data directory")
+    
+    parser.add_argument('--GRID',default=True, type=bool,
+                        help= "Plot grid")
+    
+    parser.add_argument('--AUX',default=True, type=bool,
+                        help= "Plot other chans")
 
     today = time.strftime("%Y%m%d")
     parser.add_argument('--exp_date',default=today, type=str,
@@ -157,7 +223,7 @@ if __name__ == "__main__":
     parser.add_argument('--MEP',default=True, type=bool,
                         help= "Is the file an MEP scan")
     
-    parser.add_argument('--fname',default="1709056177.3406796_FLX-20240227_124937", type=str,
+    parser.add_argument('--fname',default="EXT-20240228_205641", type=str,
                         help= "File name of the trial")
     
 

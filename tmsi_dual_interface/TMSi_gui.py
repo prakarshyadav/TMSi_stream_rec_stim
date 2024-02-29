@@ -108,7 +108,7 @@ class TMSi_GUI(tk.Toplevel):
         self.lbl3 = ttk.Label(self, text='BIP Channels')
         self.lbl3.pack(fill='x', expand=True)
         self.t3 = tk.Entry(self, textvariable=self.bip_num)
-        self.t3.insert(0, "None")
+        self.t3.insert(0, "4")
         self.t3.pack(fill='x', expand=True)
         self.t3.focus()
         self.lbl3.place(x=10, y=113)
@@ -166,10 +166,16 @@ class TMSi_GUI(tk.Toplevel):
         self.vis_heatmap_button.pack()
         self.vis_heatmap_button.place(x=210, y=220)
 
+        
+
+
         self.start_dump_button = tk.Button(self, text='PUSH TMSi', bg = 'yellow')
         self.start_dump_button['command'] = self.push_tmsi
         self.start_dump_button.pack()
         self.start_dump_button.place(x=210, y=400)
+
+
+
 
         # self.start_dump_button = tk.Button(self, text='START DUMPING', bg = 'yellow')
         # self.start_dump_button['command'] = self.start_dumping

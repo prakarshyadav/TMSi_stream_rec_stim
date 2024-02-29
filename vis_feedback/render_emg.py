@@ -139,9 +139,9 @@ class check_MEPs_win(tk.Toplevel):
         self.canvas_check_MEP_fig.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
 
         self.disp_target.set_xlabel("Time (s)", fontsize=14)
-        self.disp_target.set_ylabel("Torque (Nm)", fontsize=14)
+        self.disp_target.set_ylabel("EMG (mV)/Torque (Nm)", fontsize=14)
         self.check_MEP_fig.set_xlabel("Time (ms)", fontsize=14)
-        self.check_MEP_fig.set_ylabel("EMG (mV)", fontsize=14)
+        self.check_MEP_fig.set_ylabel("EMG (mV)/AUX (V)", fontsize=14)
 
         self.l_target = self.disp_target.plot(target_profile_x, target_profile_y, linewidth = 50, color = 'r')
         self.l_current = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 13, color = 'b',)
@@ -186,10 +186,14 @@ class check_MEPs_win(tk.Toplevel):
         self.inlet_STA = DataInlet_reset(stream[0])    
     def stop_vis(self):
         self.kill = True
+        self.inlet.inlet.close_stream()
+        self.inlet_STA.inlet.close_stream()
         self.destroy()
 
 
     def start_vis(self):
+        self.inlet.inlet.open_stream()
+        self.inlet_STA.inlet.open_stream()
         if self.rec_flag:
             self.task_stim.write(False)
         self.task_trial.write(True)
@@ -215,6 +219,12 @@ class check_MEPs_win(tk.Toplevel):
         samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
         samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
         _, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
+
+        if self.vis_chan_mode == 'aux':
+            array_data = self.inlet.pull_and_plot()
+            array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])
+            array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
+            baseline =  abs(np.mean(array_data_scaled))
 
 
         t0 = time.time()
@@ -292,9 +302,11 @@ class check_MEPs_win(tk.Toplevel):
                 array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
             array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
             
-            force = abs(np.mean(array_data_scaled))
             if self.vis_chan_mode == 'aux':
+                force = abs(np.mean(array_data_scaled)) - baseline
                 force = force*float(self.parent.conv_factor.get())
+            else:
+                force = abs(np.mean(array_data_scaled))
             # force = np.median(array_data_scaled)
             # print(force)
             self.force_holder.append(force)
@@ -312,6 +324,8 @@ class check_MEPs_win(tk.Toplevel):
             self.canvas_disp_target.draw()
             self.update()
 
+        self.inlet_STA.inlet.close_stream()
+        self.inlet.inlet.close_stream()
         self.destroy()
 
 class display_force_data(tk.Toplevel):
@@ -363,7 +377,7 @@ class display_force_data(tk.Toplevel):
         self.canvas_disp_target.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
 
         self.disp_target.set_xlabel("Time (s)", fontsize=14)
-        self.disp_target.set_ylabel("Torque (Nm)", fontsize=14)
+        self.disp_target.set_ylabel("EMG (mV)/Torque (Nm)", fontsize=14)
         self.l_target = self.disp_target.plot(target_profile_x, target_profile_y, linewidth = 50, color = 'r')
         self.l_current = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 13, color = 'b',)
         self.disp_target.set_xlim([0,self.trial_params['duration']])
@@ -391,9 +405,12 @@ class display_force_data(tk.Toplevel):
         
     def stop_vis(self):
         self.kill = True
+        self.inlet.inlet.close_stream()
         self.destroy()
 
     def start_vis(self):
+        self.inlet.inlet.open_stream()
+
         if self.rec_flag:
             self.task_stim.write(False)
         self.task_trial.write(True)
@@ -418,6 +435,13 @@ class display_force_data(tk.Toplevel):
         samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
         samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
         _, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
+
+        if self.vis_chan_mode == 'aux':
+            array_data = self.inlet.pull_and_plot()
+            array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])
+            array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
+            baseline =  abs(np.mean(array_data_scaled))
+
         t0 = time.time()
         stim_ctr = 0
         curr_pulse_time = 1e16
@@ -443,18 +467,17 @@ class display_force_data(tk.Toplevel):
             array_data = self.inlet.pull_and_plot()
             if self.vis_chan_mode == 'aux':
                 array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])
-                # samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
-                # samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
-                # array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
             else:
                 samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
                 samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
                 array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
             array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
             
-            force = abs(np.mean(array_data_scaled))
             if self.vis_chan_mode == 'aux':
+                force = abs(np.mean(array_data_scaled)) - baseline
                 force = force*float(self.parent.conv_factor.get())
+            else:
+                force = abs(np.mean(array_data_scaled))
             # force = np.median(array_data_scaled)
             self.force_holder.append(force)
             t_prev = time.time()-t0
@@ -470,11 +493,11 @@ class display_force_data(tk.Toplevel):
             self.disp_target.set_xlim([time.time()-t0-self.vis_xlim_pad,time.time()-t0+self.vis_xlim_pad])
             self.canvas_disp_target.draw()
             self.update()
-
+        self.inlet.inlet.close_stream()
         self.destroy()
 
 class APP(tk.Toplevel):
-    def __init__(self,parent,tmsi):
+    def __init__(self,parent,tmsi,dump_path):
         super().__init__(parent)
         self.title('Force Ramp Interface')
         self.geometry('1000x1000')
@@ -482,6 +505,7 @@ class APP(tk.Toplevel):
         Buttons
         """
         self.tmsi_dev = tmsi
+        self.dump_path = dump_path
         self.start_rec_button = tk.Button(self, text='START', bg ='green')
         self.start_rec_button['command'] = self.start_rec
         self.start_rec_button.pack()
@@ -533,29 +557,29 @@ class APP(tk.Toplevel):
         self.t_trial_ID.focus()
         self.t_trial_ID.place(x=150, y=40, width = 50)
 
-        self.check_dir_button = tk.Button(self, text='CHECK DIR', bg ='yellow')
-        self.check_dir_button['command'] = self.check_dir
-        self.check_dir_button.pack()
-        self.check_dir_button.place(x=250, y=40)
+        # self.check_dir_button = tk.Button(self, text='CHECK DIR', bg ='yellow')
+        # self.check_dir_button['command'] = self.check_dir
+        # self.check_dir_button.pack()
+        # self.check_dir_button.place(x=250, y=40)
 
-        today = time.strftime("%Y%m%d")
+        # today = time.strftime("%Y%m%d")
 
-        self.dump_path = tk.StringVar()
-        self.lbl_dump_path = ttk.Label(self, text='Dump Path:')
-        self.lbl_dump_path.pack(fill='x', expand=True)
-        self.lbl_dump_path.place(x=10, y=70)
-        self.t_dump_path = tk.Entry(self, textvariable=self.dump_path)
-        self.t_dump_path.insert(0, "data/PX/"+today)
-        self.t_dump_path.pack(fill='x', expand=True)
-        self.t_dump_path.focus()
-        self.t_dump_path.place(x=150, y=70, width = 500)
+        # self.dump_path = tk.StringVar()
+        # self.lbl_dump_path = ttk.Label(self, text='Dump Path:')
+        # self.lbl_dump_path.pack(fill='x', expand=True)
+        # self.lbl_dump_path.place(x=10, y=70)
+        # self.t_dump_path = tk.Entry(self, textvariable=self.dump_path)
+        # self.t_dump_path.insert(0, "data/PX/"+today)
+        # self.t_dump_path.pack(fill='x', expand=True)
+        # self.t_dump_path.focus()
+        # self.t_dump_path.place(x=150, y=70, width = 500)
 
         self.daq_name = tk.StringVar()
         self.lbl_daq_name = ttk.Label(self, text='DAQ ID:')
         self.lbl_daq_name.pack(fill='x', expand=True)
         self.lbl_daq_name.place(x=10, y=100)
         self.t_daq_name = tk.Entry(self, textvariable=self.daq_name)
-        self.t_daq_name.insert(0, "Dev3")
+        self.t_daq_name.insert(0, "Dev4")
         self.t_daq_name.pack(fill='x', expand=True)
         self.t_daq_name.focus()
         self.t_daq_name.place(x=150, y=100, width = 100)
@@ -791,7 +815,7 @@ class APP(tk.Toplevel):
         self.vis_chan_drop_check = tk.OptionMenu( self , self.vis_chan_check , *options) #tk.Button(self, text='START', bg ='green')
         self.vis_chan_drop_check.pack()
         self.vis_chan_drop_check.place(x=850, y=310)
-
+        
         self.do_vanilla()
 
     def start_rec(self,):
@@ -830,7 +854,7 @@ class APP(tk.Toplevel):
             "target_profile": np.array((self.target_profile_x,self.target_profile_y)).T,
             "MVC": float(self.max_force.get())
                    }
-        savemat(os.path.join(self.dump_path.get(),'trial_'+ self.trial_ID.get()+'_'+str(start_time)+'_profiles'+".mat"), out_mat)
+        savemat(os.path.join(self.dump_path,'trial_'+ self.trial_ID.get()+'_'+str(start_time)+'_profiles'+".mat"), out_mat)
         self.task_trial.write(False)
 
         self.stop_tmsi()
@@ -989,13 +1013,14 @@ class APP(tk.Toplevel):
         self.stop_tmsi(flag='rec')
         self.update()
 
-    def check_dir(self):
-        dump_name = self.dump_path.get()
-        if not os.path.isdir(dump_name):
-            print("Dir not found, making it")
-            # os.makedirs(dump_name)
-            os.makedirs(dump_name+'/MEPs')
-        self.check_dir_button.config(bg = 'green')
+    # def check_dir(self):
+    #     dump_name = self.dump_path.get()
+    #     if not os.path.isdir(dump_name):
+    #         print("Dir not found, making it")
+    #         # os.makedirs(dump_name)
+    #         os.makedirs(dump_name+'/MEPs')
+    #         os.makedirs(dump_name+'/MVC')
+    #     self.check_dir_button.config(bg = 'green')
 
     def start_DAQ(self):
         daq_name = self.daq_name.get()
@@ -1020,7 +1045,7 @@ class APP(tk.Toplevel):
     def start_tmsi(self,flag = "rec"):
         start_time = time.time()
         trial_num = self.trial_ID.get()
-        dump_path = self.dump_path.get()
+        dump_path = self.dump_path
         self.streams = {}
         self.file_writers = {}
         for key in self.tmsi_dev.keys():
@@ -1030,7 +1055,7 @@ class APP(tk.Toplevel):
         # self.stream_2 = FileWriter(FileFormat.lsl, self.tmsi_dev[keysList[1]].dev_name)
         # self.stream_2.open(self.tmsi_dev[keysList[1]].dev)
             if flag != "no_rec" and flag == "MVC":
-                save_path = os.path.join(dump_path,'trial_MVC_'+str(start_time)+'_'+key+'.poly5')
+                save_path = os.path.join(dump_path,'MVC','MVC_'+key+'.poly5')
                 # save_path2 = os.path.join(dump_path,'trial_MVC_'+str(start_time)+'_'+keysList[1]+'.poly5')
                 self.file_writers[key] = FileWriter(FileFormat.poly5, save_path)
                 self.file_writers[key].open(self.tmsi_dev[key].dev)
@@ -1038,7 +1063,7 @@ class APP(tk.Toplevel):
                 # self.file_writer2.open(self.tmsi_dev[keysList[1]].dev)
             
             elif flag != "no_rec" and flag == "check":
-                save_path = os.path.join(dump_path,'MEPs',str(start_time)+'_'+key+'.poly5')
+                save_path = os.path.join(dump_path,'MEPs',key+'.poly5')
                 # save_path2 = os.path.join(dump_path,'MEPs',str(start_time)+'_'+keysList[1]+'.poly5')
                 self.file_writers[key] = FileWriter(FileFormat.poly5, save_path)
                 self.file_writers[key].open(self.tmsi_dev[key].dev)
@@ -1047,7 +1072,7 @@ class APP(tk.Toplevel):
             
                 
             elif flag != "no_rec" and flag == "rec":
-                save_path = os.path.join(dump_path,'trial_'+str(trial_num)+'_'+str(start_time)+'_'+key+'.poly5')
+                save_path = os.path.join(dump_path,'trial_'+str(trial_num)+'_'+key+'.poly5')
                 # save_path2 = os.path.join(dump_path,'trial_'+str(trial_num)+'_'+str(start_time)+'_'+keysList[1]+'.poly5')
                 self.file_writers[key] = FileWriter(FileFormat.poly5, save_path)
                 self.file_writers[key].open(self.tmsi_dev[key].dev)
@@ -1060,6 +1085,7 @@ class APP(tk.Toplevel):
 
     def stop_tmsi(self,flag='rec'):
         keysList = list(self.tmsi_dev.keys())
+        time.sleep(0.2)
         for key in self.tmsi_dev.keys():
             if flag == "rec":
                 self.file_writers[key].close()
@@ -1125,6 +1151,9 @@ class APP(tk.Toplevel):
             print('sampling rate:', info.nominal_srate())
             print('type: ', info.type())
         self.inlet = DataInlet(stream[0])    
+        
+
+        self.inlet.inlet.open_stream()
         showinfo(title='START MVC', message="START MVC")
         self.task_trial.write(True)
         array_data = self.inlet.pull_and_plot()#
@@ -1173,6 +1202,8 @@ class APP(tk.Toplevel):
                 print("not saved",curr_force)
         
         self.task_trial.write(False)
+        self.inlet_STA.inlet.close_stream()
+
         self.stop_tmsi()
         # showinfo(title='STOP MVC', message="STOP MVC")
         self.start_MVC_button.config(bg = 'green')
