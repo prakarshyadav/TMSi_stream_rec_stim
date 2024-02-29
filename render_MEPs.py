@@ -223,7 +223,7 @@ if __name__ == "__main__":
     parser.add_argument('--MEP',default=True, type=bool,
                         help= "Is the file an MEP scan")
     
-    parser.add_argument('--fname',default="EXT-20240228_205641", type=str,
+    parser.add_argument('--fname',default="EXT-20240229_125918", type=str,
                         help= "File name of the trial")
     
 

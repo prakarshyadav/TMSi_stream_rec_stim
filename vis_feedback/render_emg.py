@@ -220,17 +220,18 @@ class check_MEPs_win(tk.Toplevel):
         samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
         _, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
 
-        if self.vis_chan_mode == 'aux':
-            array_data = self.inlet.pull_and_plot()
-            array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])
-            array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
-            baseline =  abs(np.mean(array_data_scaled))
+        # if self.vis_chan_mode == 'aux':
+        #     array_data = self.inlet.pull_and_plot()
+        #     array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])
+        #     array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
+        #     baseline =  abs(np.mean(array_data_scaled))
 
 
         t0 = time.time()
         stim_ctr = 0
         curr_pulse_time = 1e16
         MEP_update = False
+        baseline_list = []
         data_STA = self.inlet_STA.pull_and_plot()#
         if stim_ctr<len(self.stim_profile_x)-1:
             curr_pulse_time = self.stim_profile_x[stim_ctr]
@@ -302,8 +303,15 @@ class check_MEPs_win(tk.Toplevel):
                 array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
             array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
             
-            if self.vis_chan_mode == 'aux':
+            if self.vis_chan_mode == 'aux' and time.time()-t0 < 3:
+                force = abs(np.mean(array_data_scaled)) 
+                baseline_list.append(force)
+                baseline = np.mean(baseline_list)
+                force = force*float(self.parent.conv_factor.get())
+                print("setting", baseline)
+            elif self.vis_chan_mode == 'aux' and time.time()-t0 > 3:
                 force = abs(np.mean(array_data_scaled)) - baseline
+                print("using", baseline)
                 force = force*float(self.parent.conv_factor.get())
             else:
                 force = abs(np.mean(array_data_scaled))
@@ -435,13 +443,13 @@ class display_force_data(tk.Toplevel):
         samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
         samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
         _, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
-
-        if self.vis_chan_mode == 'aux':
-            array_data = self.inlet.pull_and_plot()
-            array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])
-            array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
-            baseline =  abs(np.mean(array_data_scaled))
-
+        # time.sleep(0.1)
+        # if self.vis_chan_mode == 'aux':
+        #     array_data = self.inlet.pull_and_plot()
+        #     array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])
+        #     array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
+        #     baseline =  abs(np.mean(array_data_scaled))
+        baseline_list = []
         t0 = time.time()
         stim_ctr = 0
         curr_pulse_time = 1e16
@@ -473,8 +481,15 @@ class display_force_data(tk.Toplevel):
                 array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
             array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
             
-            if self.vis_chan_mode == 'aux':
+            if self.vis_chan_mode == 'aux' and time.time()-t0 < 3:
+                force = abs(np.mean(array_data_scaled)) 
+                baseline_list.append(force)
+                baseline = np.mean(baseline_list)
+                force = force*float(self.parent.conv_factor.get())
+                print("setting", baseline)
+            elif self.vis_chan_mode == 'aux' and time.time()-t0 > 3:
                 force = abs(np.mean(array_data_scaled)) - baseline
+                print("using", baseline)
                 force = force*float(self.parent.conv_factor.get())
             else:
                 force = abs(np.mean(array_data_scaled))
@@ -579,7 +594,7 @@ class APP(tk.Toplevel):
         self.lbl_daq_name.pack(fill='x', expand=True)
         self.lbl_daq_name.place(x=10, y=100)
         self.t_daq_name = tk.Entry(self, textvariable=self.daq_name)
-        self.t_daq_name.insert(0, "Dev4")
+        self.t_daq_name.insert(0, "Dev3")
         self.t_daq_name.pack(fill='x', expand=True)
         self.t_daq_name.focus()
         self.t_daq_name.place(x=150, y=100, width = 100)
@@ -649,7 +664,7 @@ class APP(tk.Toplevel):
         self.lbl_trl_duration.pack(fill='x', expand=True)
         self.lbl_trl_duration.place(x=10, y=330)
         self.t_trl_duration = tk.Entry(self, textvariable=self.trl_duration)
-        self.t_trl_duration.insert(0, "30")
+        self.t_trl_duration.insert(0, "40")
         self.t_trl_duration.pack(fill='x', expand=True)
         self.t_trl_duration.focus()
         self.t_trl_duration.place(x=150, y=330, width = 100)
@@ -659,7 +674,7 @@ class APP(tk.Toplevel):
         self.lbl_init_wait.pack(fill='x', expand=True)
         self.lbl_init_wait.place(x=10, y=360)
         self.t_init_wait = tk.Entry(self, textvariable=self.init_wait)
-        self.t_init_wait.insert(0, "3")
+        self.t_init_wait.insert(0, "5")
         self.t_init_wait.pack(fill='x', expand=True)
         self.t_init_wait.focus()
         self.t_init_wait.place(x=150, y=360, width = 100)
@@ -669,7 +684,7 @@ class APP(tk.Toplevel):
         self.lbl_peak_ramp_force.pack(fill='x', expand=True)
         self.lbl_peak_ramp_force.place(x=310, y=360)
         self.t_peak_ramp_force = tk.Entry(self, textvariable=self.peak_ramp_force)
-        self.t_peak_ramp_force.insert(0, "0.15")
+        self.t_peak_ramp_force.insert(0, "0.3")
         self.t_peak_ramp_force.pack(fill='x', expand=True)
         self.t_peak_ramp_force.focus()
         self.t_peak_ramp_force.place(x=450, y=360, width = 100)
@@ -1202,7 +1217,7 @@ class APP(tk.Toplevel):
                 print("not saved",curr_force)
         
         self.task_trial.write(False)
-        self.inlet_STA.inlet.close_stream()
+        self.inlet.inlet.close_stream()
 
         self.stop_tmsi()
         # showinfo(title='STOP MVC', message="STOP MVC")
