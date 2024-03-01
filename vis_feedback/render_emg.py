@@ -145,6 +145,7 @@ class check_MEPs_win(tk.Toplevel):
 
         self.l_target = self.disp_target.plot(target_profile_x, target_profile_y, linewidth = 50, color = 'r')
         self.l_current = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 13, color = 'b',)
+        self.l_history = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 5, color = 'c',)
         
         self.x_axis_MEP = np.linspace(self.trial_params['MEP_winL'],self.trial_params['MEP_winU'],(self.trial_params['MEP_winU'] - self.trial_params['MEP_winL'])*2)#
         self.stim_line_y0 = self.check_MEP_fig.vlines(0,-1000,1000, linewidth = 3, color = 'k')
@@ -323,11 +324,12 @@ class check_MEPs_win(tk.Toplevel):
                 print(time.time()-t0,curr_pulse_time,stim,force)
             if self.rec_flag:
                 self.task_stim.write(False)
-                self.parent.dump_time.append(t_prev)
                 self.parent.dump_trig.append(self.trig_holder[-1])
-                self.parent.dump_force.append(force)
+            self.parent.dump_time.append(t_prev)
+            self.parent.dump_force.append(force)
             disp_force = sorted(self.force_holder)
             self.l_current[0].set_data(self.x_axis*(time.time()-t0-t_prev-0.1)+t_prev,np.mean(disp_force)*np.ones(self.vis_buffer_len))
+            self.l_history[0].set_data(self.parent.dump_time,self.parent.dump_force)
             self.disp_target.set_xlim([time.time()-t0-self.vis_xlim_pad,time.time()-t0+self.vis_xlim_pad])
             self.canvas_disp_target.draw()
             self.update()
@@ -388,6 +390,7 @@ class display_force_data(tk.Toplevel):
         self.disp_target.set_ylabel("EMG (mV)/Torque (Nm)", fontsize=14)
         self.l_target = self.disp_target.plot(target_profile_x, target_profile_y, linewidth = 50, color = 'r')
         self.l_current = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 13, color = 'b',)
+        self.l_history = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 5, color = 'c',)
         self.disp_target.set_xlim([0,self.trial_params['duration']])
         self.disp_target.set_ylim([0,self.trial_params['MVF']*0.5])
 
@@ -500,11 +503,15 @@ class display_force_data(tk.Toplevel):
                 print(time.time()-t0,curr_pulse_time,stim,force)
             if self.rec_flag:
                 self.task_stim.write(False)
-                self.parent.dump_time.append(t_prev)
                 self.parent.dump_trig.append(self.trig_holder[-1])
-                self.parent.dump_force.append(force)
+            """
+            NOTE: Can be made faster by pre defining the length of dump_force and dump_time variables
+            """
+            self.parent.dump_time.append(t_prev)
+            self.parent.dump_force.append(force)
             disp_force = sorted(self.force_holder)
             self.l_current[0].set_data(self.x_axis*(time.time()-t0-t_prev-0.1)+t_prev,np.mean(disp_force)*np.ones(self.vis_buffer_len))
+            self.l_history[0].set_data(self.parent.dump_time,self.parent.dump_force)
             self.disp_target.set_xlim([time.time()-t0-self.vis_xlim_pad,time.time()-t0+self.vis_xlim_pad])
             self.canvas_disp_target.draw()
             self.update()
