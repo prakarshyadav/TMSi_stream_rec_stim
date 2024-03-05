@@ -25,7 +25,7 @@ The code seems to be unstable if alternating between trail and rec mode
 Also sometimes stream does not close properly (issue with sample_data_server.py) which causes code to crash after a while
 """
 
-plot_duration = 15  # how many seconds of data to show
+plot_duration = 10  # how many seconds of data to show
 update_interval = 30  # ms between screen updates
 pull_interval = 100  # ms between each pull operation
 
@@ -73,7 +73,7 @@ class check_MEPs_win(tk.Toplevel):
     def __init__(self, parent, task_trial, task_stim, target_profile_x,target_profile_y,stim_profile_x,stim_profile_y, trial_params,dev_select='FLX', vis_chan_mode='avg', vis_chan = 10,vis_chan_mode_check='single', vis_chan_check = 35,record = False,):
         super().__init__(parent)
 
-        self.vis_buffer_len = 10
+        self.vis_buffer_len = 5
         self.vis_xlim_pad = 3
         self.EMG_avg_win = 100 #in samples
         self.vis_chan_mode  = vis_chan_mode
@@ -93,10 +93,10 @@ class check_MEPs_win(tk.Toplevel):
         self.trial_params = trial_params
         self.rec_flag = record
         self.parent = parent
-        if self.rec_flag:
-            self.parent.dump_trig = []
-            self.parent.dump_force = []
-            self.parent.dump_time = []
+        # if self.rec_flag:
+        self.parent.dump_trig = []
+        self.parent.dump_force = []
+        self.parent.dump_time = []
 
         if self.vis_chan_mode == 'single':
             self.vis_chan_slice = np.array([int(self.vis_chan)])
@@ -144,8 +144,8 @@ class check_MEPs_win(tk.Toplevel):
         self.check_MEP_fig.set_ylabel("EMG (mV)/AUX (V)", fontsize=14)
 
         self.l_target = self.disp_target.plot(target_profile_x, target_profile_y, linewidth = 50, color = 'r')
-        self.l_current = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 13, color = 'b',)
         self.l_history = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 5, color = 'c',)
+        self.l_current = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 13, color = 'b',)
         
         self.x_axis_MEP = np.linspace(self.trial_params['MEP_winL'],self.trial_params['MEP_winU'],(self.trial_params['MEP_winU'] - self.trial_params['MEP_winL'])*2)#
         self.stim_line_y0 = self.check_MEP_fig.vlines(0,-1000,1000, linewidth = 3, color = 'k')
@@ -193,11 +193,11 @@ class check_MEPs_win(tk.Toplevel):
 
 
     def start_vis(self):
-        self.inlet.inlet.open_stream()
-        self.inlet_STA.inlet.open_stream()
         if self.rec_flag:
             self.task_stim.write(False)
         self.task_trial.write(True)
+        self.inlet.inlet.open_stream()
+        self.inlet_STA.inlet.open_stream()
         data_STA = self.inlet_STA.pull_and_plot()#
         array_data = self.inlet.pull_and_plot()#
         if self.vis_chan_mode == 'aux':
@@ -258,7 +258,7 @@ class check_MEPs_win(tk.Toplevel):
                 trigs = data_STA[:,-3]
                 plot_event_idx = np.where(np.abs(np.diff(trigs))>0)[0]#[-1]
                 print("updating MEPs", plot_event_idx)
-                if len(plot_event_idx)>0:
+                if len(plot_event_idx)>1:
                     if self.vis_chan_mode_check == 'aux':
                         data_STA_filt = np.abs(data_STA[:,self.vis_chan_slice_check])
                     else:
@@ -309,10 +309,10 @@ class check_MEPs_win(tk.Toplevel):
                 baseline_list.append(force)
                 baseline = np.mean(baseline_list)
                 force = force*float(self.parent.conv_factor.get())
-                print("setting", baseline)
+                # print("setting", baseline)
             elif self.vis_chan_mode == 'aux' and time.time()-t0 > 3:
                 force = abs(np.mean(array_data_scaled)) - baseline
-                print("using", baseline)
+                # print("using", baseline)
                 force = force*float(self.parent.conv_factor.get())
             else:
                 force = abs(np.mean(array_data_scaled))
@@ -342,7 +342,7 @@ class display_force_data(tk.Toplevel):
     def __init__(self, parent, task_trial, task_stim, target_profile_x,target_profile_y,stim_profile_x,stim_profile_y, trial_params,dev_select='FLX', vis_chan_mode='avg', vis_chan = 10,record = False):
         super().__init__(parent)
 
-        self.vis_buffer_len = 10
+        self.vis_buffer_len = 5
         self.vis_xlim_pad = 3
         self.EMG_avg_win = 100 #in samples
         self.vis_chan_mode  = vis_chan_mode
@@ -360,10 +360,10 @@ class display_force_data(tk.Toplevel):
         self.trial_params = trial_params
         self.rec_flag = record
         self.parent = parent
-        if self.rec_flag:
-            self.parent.dump_trig = []
-            self.parent.dump_force = []
-            self.parent.dump_time = []
+        # if self.rec_flag:
+        self.parent.dump_trig = []
+        self.parent.dump_force = []
+        self.parent.dump_time = []
 
         if self.vis_chan_mode == 'single':
             self.vis_chan_slice = np.array([int(self.vis_chan)])
@@ -389,8 +389,8 @@ class display_force_data(tk.Toplevel):
         self.disp_target.set_xlabel("Time (s)", fontsize=14)
         self.disp_target.set_ylabel("EMG (mV)/Torque (Nm)", fontsize=14)
         self.l_target = self.disp_target.plot(target_profile_x, target_profile_y, linewidth = 50, color = 'r')
-        self.l_current = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 13, color = 'b',)
         self.l_history = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 5, color = 'c',)
+        self.l_current = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 13, color = 'b',)
         self.disp_target.set_xlim([0,self.trial_params['duration']])
         self.disp_target.set_ylim([0,self.trial_params['MVF']*0.5])
 
@@ -489,10 +489,10 @@ class display_force_data(tk.Toplevel):
                 baseline_list.append(force)
                 baseline = np.mean(baseline_list)
                 force = force*float(self.parent.conv_factor.get())
-                print("setting", baseline)
+                # print("setting", baseline)
             elif self.vis_chan_mode == 'aux' and time.time()-t0 > 3:
                 force = abs(np.mean(array_data_scaled)) - baseline
-                print("using", baseline)
+                # print("using", baseline)
                 force = force*float(self.parent.conv_factor.get())
             else:
                 force = abs(np.mean(array_data_scaled))
@@ -509,8 +509,8 @@ class display_force_data(tk.Toplevel):
             """
             self.parent.dump_time.append(t_prev)
             self.parent.dump_force.append(force)
-            disp_force = sorted(self.force_holder)
-            self.l_current[0].set_data(self.x_axis*(time.time()-t0-t_prev-0.1)+t_prev,np.mean(disp_force)*np.ones(self.vis_buffer_len))
+            # disp_force = self.force_holder
+            self.l_current[0].set_data(self.x_axis*(time.time()-t0-t_prev-0.1)+t_prev,np.mean(self.force_holder)*np.ones(self.vis_buffer_len))
             self.l_history[0].set_data(self.parent.dump_time,self.parent.dump_force)
             self.disp_target.set_xlim([time.time()-t0-self.vis_xlim_pad,time.time()-t0+self.vis_xlim_pad])
             self.canvas_disp_target.draw()
@@ -786,7 +786,7 @@ class APP(tk.Toplevel):
         self.lbl_stim_stop.pack(fill='x', expand=True)
         self.lbl_stim_stop.place(x=710, y=80)
         self.t_stim_stop = tk.Entry(self, textvariable=self.stim_stop)
-        self.t_stim_stop.insert(0, "30")
+        self.t_stim_stop.insert(0, "40")
         self.t_stim_stop.pack(fill='x', expand=True)
         self.t_stim_stop.focus()
         self.t_stim_stop.place(x=850, y=80, width = 100)
