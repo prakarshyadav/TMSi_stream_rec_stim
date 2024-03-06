@@ -166,7 +166,7 @@ def gen_MEP_vis(args):
             out_path = os.path.join(args.data_dir,args.particiapnt_ID, args.exp_date,'plots',time_ID)
         if not os.path.isdir(out_path):
             os.makedirs(out_path)
-
+        print(file_path)
         incl_chan = []
         for chan in muscle_map[key].keys():
             if muscle_map[key][chan] != 'N/A':
@@ -207,7 +207,7 @@ if __name__ == "__main__":
     parser.add_argument('--blank_win_U',default=10, type=int,
                         help= "time in ms after stim to blank")
     
-    parser.add_argument('--particiapnt_ID',default='PX', type=str,
+    parser.add_argument('--particiapnt_ID',default='P2', type=str,
                         help= "Data directory")
     
     parser.add_argument('--GRID',default=True, type=bool,
@@ -220,7 +220,7 @@ if __name__ == "__main__":
     parser.add_argument('--exp_date',default=today, type=str,
                         help= "Data directory")
     
-    parser.add_argument('--MEP',default=True, type=bool,
+    parser.add_argument('--MEP',default=False, type=bool,
                         help= "Is the file an MEP scan")
     
     parser.add_argument('--fname',default="EXT-20240229_125918", type=str,

@@ -214,7 +214,8 @@ class check_MEPs_win(tk.Toplevel):
             z_sos_raw=np.repeat(z_sos0[:, np.newaxis, :], len(self.vis_chan_slice), axis=1)
             z_sos0 = sosfilt_zi(sos_env)
             z_sos_env=np.repeat(z_sos0[:, np.newaxis, :], len(self.vis_chan_slice), axis=1)
-        
+        sos_raw_sta = butter(3, [20, 500], 'bandpass', fs=2000, output='sos')
+
         STA_raw = sosfilt(sos_raw,data_STA[:,self.vis_chan_slice_check].T)
         
         samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
@@ -262,7 +263,7 @@ class check_MEPs_win(tk.Toplevel):
                     if self.vis_chan_mode_check == 'aux':
                         data_STA_filt = np.abs(data_STA[:,self.vis_chan_slice_check])
                     else:
-                        data_STA_filt = sosfilt(sos_raw, data_STA[:,self.vis_chan_slice_check].T)
+                        data_STA_filt = sosfilt(sos_raw_sta, data_STA[:,self.vis_chan_slice_check].T)
                     data_STA_scaled = np.nan_to_num(data_STA_filt,nan=0,posinf=0,neginf=0).reshape(-1)
                     plot_data = data_STA_scaled[plot_event_idx[-2]+self.trial_params['MEP_winL']*2:plot_event_idx[-2]+self.trial_params['MEP_winU']*2]
                     SD_bound = np.std(data_STA_scaled[plot_event_idx[-2]-1050:plot_event_idx[-2]-50])
