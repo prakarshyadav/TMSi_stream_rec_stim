@@ -864,6 +864,7 @@ class APP(tk.Toplevel):
         self.vis_chan_drop_check.place(x=850, y=310)
         
         self.do_vanilla()
+        self.trl_duration = self.target_profile_x[-1]
 
     def start_rec(self,):
         self.task_trial.write(False)
@@ -872,7 +873,7 @@ class APP(tk.Toplevel):
         start_time = time.time()
 
         trial_params = {
-            "duration": float(self.trl_duration.get()),
+            "duration": self.trl_duration,
             "MVF": float(self.max_force.get()),
             }
         
@@ -1007,7 +1008,7 @@ class APP(tk.Toplevel):
         self.start_tmsi(flag = "no_rec")
 
         trial_params = {
-            "duration": float(self.trl_duration.get()),
+            "duration": self.trl_duration,
             "MVF": float(self.max_force.get()),
             }
         # self.task_stim= [] 
@@ -1035,7 +1036,7 @@ class APP(tk.Toplevel):
         self.start_tmsi(flag='check')
         start_time = time.time()
         trial_params = {
-            "duration": float(self.trl_duration.get()),
+            "duration": self.trl_duration,
             "MVF": float(self.max_force.get()),
             "MEP_winU": 100,
             "MEP_winL": -50,
@@ -1259,7 +1260,8 @@ class APP(tk.Toplevel):
         cv2.namedWindow("Gesture", cv2.WINDOW_NORMAL)
         cv2.setWindowProperty("Gesture", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.imshow('Gesture', go_image)
-        key = cv2.waitKey(int(self.MVC_duration.get())*1000)
+        key = cv2.waitKey(1)
+        t0 = time.time()
         while time.time()-t0 < trial_len:
             time.sleep(0.1)
             array_data = self.inlet.pull_and_plot()
@@ -1340,6 +1342,7 @@ class APP(tk.Toplevel):
         self.disp_target.plot(self.target_profile_x, self.target_profile_y, linewidth = 5, color = 'r')
         self.canvas_disp_target.draw()
 
+        self.trl_duration = self.target_profile_x[-1]
         # self.start_sombrero_button.config(bg = 'yellow')
         # self.start_vanilla_button.config(bg = 'green')
 
@@ -1356,6 +1359,7 @@ class APP(tk.Toplevel):
         self.disp_target.vlines(self.stim_profile_x,0,np.max(self.target_profile_y), linewidth = 3, color = 'k')
         self.canvas_disp_target.draw()
 
+        self.trl_duration = self.target_profile_x[-1]
         self.pushstim_button.config(bg = 'green')
 
     def stim_clear(self):
