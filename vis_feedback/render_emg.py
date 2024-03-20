@@ -15,6 +15,7 @@ from scipy.io import savemat
 from tmsi_dual_interface.tmsi_libraries.TMSiFileFormats.file_writer import FileWriter, FileFormat
 from tmsi_dual_interface.tmsi_libraries.TMSiSDK.device import ChannelType
 import math
+import cv2
 import pylsl
 import nidaqmx
 import nidaqmx.system
@@ -233,6 +234,7 @@ class check_MEPs_win(tk.Toplevel):
         stim_ctr = 0
         curr_pulse_time = 1e16
         MEP_update = False
+        baseline = 0
         baseline_list = []
         data_STA = self.inlet_STA.pull_and_plot()#
         if stim_ctr<len(self.stim_profile_x)-1:
@@ -296,27 +298,37 @@ class check_MEPs_win(tk.Toplevel):
             array_data = self.inlet.pull_and_plot()
             if self.vis_chan_mode == 'aux':
                 array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])
-                # samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
-                # samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
-                # array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
             else:
                 samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
                 samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
                 array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
             array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
-            
-            if self.vis_chan_mode == 'aux' and time.time()-t0 < 3:
+            force = abs(np.mean(array_data_scaled)) 
+
+            if time.time()-t0 < 3:
                 force = abs(np.mean(array_data_scaled)) 
                 baseline_list.append(force)
-                baseline = np.mean(baseline_list)
-                force = force*float(self.parent.conv_factor.get())
-                # print("setting", baseline)
-            elif self.vis_chan_mode == 'aux' and time.time()-t0 > 3:
-                force = abs(np.mean(array_data_scaled)) - baseline
-                # print("using", baseline)
-                force = force*float(self.parent.conv_factor.get())
+                baseline = np.median(baseline_list)
+
             else:
-                force = abs(np.mean(array_data_scaled))
+                if self.vis_chan_mode == 'aux':
+                    force = abs(np.mean(array_data_scaled)) - baseline
+                    # print("using", baseline)
+                    force = force*float(self.parent.conv_factor.get())
+                else:
+                    force = abs(np.mean(array_data_scaled)) - baseline
+            # if self.vis_chan_mode == 'aux' and time.time()-t0 < 3:
+            #     force = abs(np.mean(array_data_scaled)) 
+            #     baseline_list.append(force)
+            #     baseline = np.mean(baseline_list)
+            #     force = force*float(self.parent.conv_factor.get())
+            #     # print("setting", baseline)
+            # elif self.vis_chan_mode == 'aux' and time.time()-t0 > 3:
+            #     force = abs(np.mean(array_data_scaled)) - baseline
+            #     # print("using", baseline)
+            #     force = force*float(self.parent.conv_factor.get())
+            # else:
+            #     force = abs(np.mean(array_data_scaled))
             # force = np.median(array_data_scaled)
             # print(force)
             self.force_holder.append(force)
@@ -459,6 +471,7 @@ class display_force_data(tk.Toplevel):
         curr_pulse_time = 1e16
         if stim_ctr<len(self.stim_profile_x)-1:
             curr_pulse_time = self.stim_profile_x[stim_ctr]
+        baseline = 0
         while time.time()-t0 < self.trial_params['duration'] and not self.kill:
             time.sleep(0.0001)
             self.trig_holder.popleft()
@@ -477,6 +490,7 @@ class display_force_data(tk.Toplevel):
             
             self.force_holder.popleft()
             array_data = self.inlet.pull_and_plot()
+
             if self.vis_chan_mode == 'aux':
                 array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])
             else:
@@ -484,19 +498,30 @@ class display_force_data(tk.Toplevel):
                 samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
                 array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
             array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
-            
-            if self.vis_chan_mode == 'aux' and time.time()-t0 < 3:
+            force = abs(np.mean(array_data_scaled)) 
+
+
+            if time.time()-t0 < 3:
                 force = abs(np.mean(array_data_scaled)) 
                 baseline_list.append(force)
-                baseline = np.mean(baseline_list)
-                force = force*float(self.parent.conv_factor.get())
-                # print("setting", baseline)
-            elif self.vis_chan_mode == 'aux' and time.time()-t0 > 3:
-                force = abs(np.mean(array_data_scaled)) - baseline
-                # print("using", baseline)
-                force = force*float(self.parent.conv_factor.get())
+                baseline = np.median(baseline_list)
             else:
-                force = abs(np.mean(array_data_scaled))
+
+            # if self.vis_chan_mode == 'aux' and time.time()-t0 < 3:
+            #     force = abs(np.mean(array_data_scaled)) 
+            #     # baseline_list.append(force)
+            #     # baseline = np.mean(baseline_list)
+            #     force = force*float(self.parent.conv_factor.get())
+                
+            #     # print("setting", baseline)
+                if self.vis_chan_mode == 'aux':
+                    force = abs(np.mean(array_data_scaled)) - baseline
+                    # print("using", baseline)
+                    force = force*float(self.parent.conv_factor.get())
+                else:
+                    force = abs(np.mean(array_data_scaled)) - baseline
+                # baseline_list.append(force)
+                # baseline = np.mean(baseline_list)
             # force = np.median(array_data_scaled)
             self.force_holder.append(force)
             t_prev = time.time()-t0
@@ -667,46 +692,45 @@ class APP(tk.Toplevel):
         self.start_MVC_button.pack()
         self.start_MVC_button.place(x=10, y=280)
 
-        self.trl_duration = tk.StringVar()
-        self.lbl_trl_duration = ttk.Label(self, text='Trial Duration (s):')
-        self.lbl_trl_duration.pack(fill='x', expand=True)
-        self.lbl_trl_duration.place(x=10, y=330)
-        self.t_trl_duration = tk.Entry(self, textvariable=self.trl_duration)
-        self.t_trl_duration.insert(0, "40")
-        self.t_trl_duration.pack(fill='x', expand=True)
-        self.t_trl_duration.focus()
-        self.t_trl_duration.place(x=150, y=330, width = 100)
-
-        self.init_wait = tk.StringVar()
-        self.lbl_init_wait = ttk.Label(self, text='Ramp Delay (s):')
-        self.lbl_init_wait.pack(fill='x', expand=True)
-        self.lbl_init_wait.place(x=10, y=360)
-        self.t_init_wait = tk.Entry(self, textvariable=self.init_wait)
-        self.t_init_wait.insert(0, "5")
-        self.t_init_wait.pack(fill='x', expand=True)
-        self.t_init_wait.focus()
-        self.t_init_wait.place(x=150, y=360, width = 100)
-
-        self.peak_ramp_force = tk.StringVar()
-        self.lbl_peak_ramp_force = ttk.Label(self, text='Max Ramp Force (x MVC):')
-        self.lbl_peak_ramp_force.pack(fill='x', expand=True)
-        self.lbl_peak_ramp_force.place(x=310, y=360)
-        self.t_peak_ramp_force = tk.Entry(self, textvariable=self.peak_ramp_force)
-        self.t_peak_ramp_force.insert(0, "0.3")
-        self.t_peak_ramp_force.pack(fill='x', expand=True)
-        self.t_peak_ramp_force.focus()
-        self.t_peak_ramp_force.place(x=450, y=360, width = 100)
-
         self.lbl_max_force = ttk.Label(self, text="Max Force",font=('Helvetica 16 bold'))
         self.lbl_max_force.pack(fill='x', expand=True)
         self.lbl_max_force.place(x=400, y=150)
         self.max_force = tk.StringVar()
         self.max_force.set('10')
+
+        self.X_profile = tk.StringVar()
+        self.lbl_X_profile = ttk.Label(self, text='X axis times (s):')
+        self.lbl_X_profile.pack(fill='x', expand=True)
+        self.lbl_X_profile.place(x=10, y=330)
+        self.t_X_profile = tk.Entry(self, textvariable=self.X_profile)
+        self.t_X_profile.insert(0,"0, 5, 20, 35, 70, 85, 100, 105")
+        self.t_X_profile.pack(fill='x', expand=True)
+        self.t_X_profile.focus()
+        self.t_X_profile.place(x=150, y=330, width = 300)
+
+        self.Y_profile = tk.StringVar()
+        self.lbl_Y_profile = ttk.Label(self, text='MVC targets (0.X):')
+        self.lbl_Y_profile.pack(fill='x', expand=True)
+        self.lbl_Y_profile.place(x=10, y=360)
+        self.t_Y_profile = tk.Entry(self, textvariable=self.Y_profile)
+        self.t_Y_profile.insert(0, "0, 0, 0.2, 0, 0, 0.2, 0, 0")
+        self.t_Y_profile.pack(fill='x', expand=True)
+        self.t_Y_profile.focus()
+        self.t_Y_profile.place(x=150, y=360, width = 300)
+
+        # self.peak_ramp_force = tk.StringVar()
+        # self.lbl_peak_ramp_force = ttk.Label(self, text='Max Ramp Force (x MVC):')
+        # self.lbl_peak_ramp_force.pack(fill='x', expand=True)
+        # self.lbl_peak_ramp_force.place(x=310, y=360)
+        # self.t_peak_ramp_force = tk.Entry(self, textvariable=self.peak_ramp_force)
+        # self.t_peak_ramp_force.insert(0, "0.3")
+        # self.t_peak_ramp_force.pack(fill='x', expand=True)
+        # self.t_peak_ramp_force.focus()
+        # self.t_peak_ramp_force.place(x=450, y=360, width = 100)
         
         self.lbl_max_force_num = ttk.Label(self, textvariable=self.max_force,font=('Helvetica 30 bold'))
         self.lbl_max_force_num.pack(fill='x', expand=True)
         self.lbl_max_force_num.place(x=400, y=200)
-
         self.t_max_force_num = tk.Entry(self, textvariable=self.max_force)
         self.t_max_force_num.pack(fill='x', expand=True)
         self.t_max_force_num.focus()
@@ -717,45 +741,45 @@ class APP(tk.Toplevel):
         self.manualMVC_button.pack()
         self.manualMVC_button.place(x=400, y=280)
         
-        self.start_vanilla_button = tk.Button(self, text='PUSH VANILLA', bg ='yellow')
+        self.start_vanilla_button = tk.Button(self, text='PUSH TRACE', bg ='yellow')
         self.start_vanilla_button['command'] = self.do_vanilla
         self.start_vanilla_button.pack()
-        self.start_vanilla_button.place(x=10, y=400)
+        self.start_vanilla_button.place(x=10, y=500)
         
-        self.start_sombrero_button = tk.Button(self, text='PUSH SOMBRERO', bg ='yellow')
-        self.start_sombrero_button['command'] = self.do_sombrero
-        self.start_sombrero_button.pack()
-        self.start_sombrero_button.place(x=310, y=400)
+        # self.start_sombrero_button = tk.Button(self, text='PUSH SOMBRERO', bg ='yellow')
+        # self.start_sombrero_button['command'] = self.do_sombrero
+        # self.start_sombrero_button.pack()
+        # self.start_sombrero_button.place(x=310, y=400)
 
-        self.sombrero_width = tk.StringVar()
-        self.lbl_sombrero_width = ttk.Label(self, text='Sombrero hold (s):')
-        self.lbl_sombrero_width.pack(fill='x', expand=True)
-        self.lbl_sombrero_width.place(x=310, y=430)
-        self.t_sombrero_width = tk.Entry(self, textvariable=self.sombrero_width)
-        self.t_sombrero_width.insert(0, "10")
-        self.t_sombrero_width.pack(fill='x', expand=True)
-        self.t_sombrero_width.focus()
-        self.t_sombrero_width.place(x=500, y=430, width = 100)
+        # self.sombrero_width = tk.StringVar()
+        # self.lbl_sombrero_width = ttk.Label(self, text='Sombrero hold (s):')
+        # self.lbl_sombrero_width.pack(fill='x', expand=True)
+        # self.lbl_sombrero_width.place(x=310, y=430)
+        # self.t_sombrero_width = tk.Entry(self, textvariable=self.sombrero_width)
+        # self.t_sombrero_width.insert(0, "10")
+        # self.t_sombrero_width.pack(fill='x', expand=True)
+        # self.t_sombrero_width.focus()
+        # self.t_sombrero_width.place(x=500, y=430, width = 100)
 
-        self.sombrero_ramp = tk.StringVar()
-        self.lbl_sombrero_ramp = ttk.Label(self, text='Sombrero ramp (s):')
-        self.lbl_sombrero_ramp.pack(fill='x', expand=True)
-        self.lbl_sombrero_ramp.place(x=310, y=460)
-        self.t_sombrero_ramp = tk.Entry(self, textvariable=self.sombrero_ramp)
-        self.t_sombrero_ramp.insert(0, "5")
-        self.t_sombrero_ramp.pack(fill='x', expand=True)
-        self.t_sombrero_ramp.focus()
-        self.t_sombrero_ramp.place(x=500, y=460, width = 100)
+        # self.sombrero_ramp = tk.StringVar()
+        # self.lbl_sombrero_ramp = ttk.Label(self, text='Sombrero ramp (s):')
+        # self.lbl_sombrero_ramp.pack(fill='x', expand=True)
+        # self.lbl_sombrero_ramp.place(x=310, y=460)
+        # self.t_sombrero_ramp = tk.Entry(self, textvariable=self.sombrero_ramp)
+        # self.t_sombrero_ramp.insert(0, "5")
+        # self.t_sombrero_ramp.pack(fill='x', expand=True)
+        # self.t_sombrero_ramp.focus()
+        # self.t_sombrero_ramp.place(x=500, y=460, width = 100)
 
-        self.sombrero_force = tk.StringVar()
-        self.lbl_sombrero_force = ttk.Label(self, text='Sombrero Ramp Force (x MVC):')
-        self.lbl_sombrero_force.pack(fill='x', expand=True)
-        self.lbl_sombrero_force.place(x=310, y=490)
-        self.t_sombrero_force = tk.Entry(self, textvariable=self.sombrero_force)
-        self.t_sombrero_force.insert(0, "0.15")
-        self.t_sombrero_force.pack(fill='x', expand=True)
-        self.t_sombrero_force.focus()
-        self.t_sombrero_force.place(x=500, y=490, width = 100)
+        # self.sombrero_force = tk.StringVar()
+        # self.lbl_sombrero_force = ttk.Label(self, text='Sombrero Ramp Force (x MVC):')
+        # self.lbl_sombrero_force.pack(fill='x', expand=True)
+        # self.lbl_sombrero_force.place(x=310, y=490)
+        # self.t_sombrero_force = tk.Entry(self, textvariable=self.sombrero_force)
+        # self.t_sombrero_force.insert(0, "0.15")
+        # self.t_sombrero_force.pack(fill='x', expand=True)
+        # self.t_sombrero_force.focus()
+        # self.t_sombrero_force.place(x=500, y=490, width = 100)
 
         self.target_profile_x = [0]
         self.target_profile_y = [0]
@@ -777,7 +801,7 @@ class APP(tk.Toplevel):
         self.lbl_stim_start.pack(fill='x', expand=True)
         self.lbl_stim_start.place(x=710, y=50)
         self.t_stim_start = tk.Entry(self, textvariable=self.stim_start)
-        self.t_stim_start.insert(0, "5")
+        self.t_stim_start.insert(0, "35")
         self.t_stim_start.pack(fill='x', expand=True)
         self.t_stim_start.focus()
         self.t_stim_start.place(x=850, y=50, width = 100)
@@ -787,7 +811,7 @@ class APP(tk.Toplevel):
         self.lbl_stim_stop.pack(fill='x', expand=True)
         self.lbl_stim_stop.place(x=710, y=80)
         self.t_stim_stop = tk.Entry(self, textvariable=self.stim_stop)
-        self.t_stim_stop.insert(0, "40")
+        self.t_stim_stop.insert(0, "71")
         self.t_stim_stop.pack(fill='x', expand=True)
         self.t_stim_stop.focus()
         self.t_stim_stop.place(x=850, y=80, width = 100)
@@ -1177,7 +1201,6 @@ class APP(tk.Toplevel):
         
 
         self.inlet.inlet.open_stream()
-        showinfo(title='START MVC', message="START MVC")
         self.task_trial.write(True)
         array_data = self.inlet.pull_and_plot()#
 
@@ -1186,29 +1209,10 @@ class APP(tk.Toplevel):
         _, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
         t0 = time.time()
         ctr = 0 # this counter prevents initial values (with filter artifact) from being saved into MVC
-        while time.time()-t0 < trial_len:
-            if ctr>3:
-                time.sleep(0.1)
-                array_data = self.inlet.pull_and_plot()
-                if self.vis_chan_mode.get() == 'aux':
-                    array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])#sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
-                    # samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
-                    # array_data_filt, z_sos_env= sosfilt(samples_raw.T, samples, zi=z_sos_env)
-                else:
-                    samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
-                    samples = np.abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
-                    array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
-                array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
-                curr_force = np.median(array_data_scaled)
-                
-                if self.vis_chan_mode.get() == 'aux':
-                    curr_force = curr_force*float(self.conv_factor.get())
-                print(curr_force)
-                if curr_force > max_force:
-                    max_force = curr_force
-                    self.max_force.set(str(max_force))
-                    self.update()
-            else:
+        baseline_list = []
+        baseline = 0
+        while time.time()-t0 < 3:
+            if ctr<5:
                 ctr+=1
                 time.sleep(0.1)
                 array_data = self.inlet.pull_and_plot()
@@ -1223,47 +1227,109 @@ class APP(tk.Toplevel):
                 if self.vis_chan_mode.get() == 'aux':
                     curr_force = curr_force*float(self.conv_factor.get())
                 print("not saved",curr_force)
+            else:
+                time.sleep(0.1)
+                array_data = self.inlet.pull_and_plot()
+                if self.vis_chan_mode.get() == 'aux':
+                    array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])
+                else:
+                    samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
+                    samples = np.abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
+                    array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
+                array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
+                baseline = np.median(array_data_scaled)
+                if self.vis_chan_mode.get() == 'aux':
+                    baseline = baseline*float(self.conv_factor.get())
+                baseline_list.append(baseline)
+                baseline = np.median(baseline_list)
+                print("Baseline",baseline)
+
+        
+        showinfo(title='START MVC', message="START MVC")
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        fontScale = 2.5
+        color = (0,0,0)
+        thickness = 3
+        go_image = np.zeros((300,300,3))
+        go_image[:,:,1] = np.ones((300,300))*255
+        textsize = cv2.getTextSize("GO!", font, fontScale, thickness,)[0]
+        textX = (go_image.shape[1] - textsize[0]) // 2
+        textY = (go_image.shape[0] + textsize[1]) // 2
+        go_image = cv2.putText(go_image, "GO!",  (textX, textY), font, fontScale, color, thickness, cv2.LINE_AA)
+        cv2.namedWindow("Gesture", cv2.WINDOW_NORMAL)
+        cv2.setWindowProperty("Gesture", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow('Gesture', go_image)
+        key = cv2.waitKey(int(self.MVC_duration.get())*1000)
+        while time.time()-t0 < trial_len:
+            time.sleep(0.1)
+            array_data = self.inlet.pull_and_plot()
+            if self.vis_chan_mode.get() == 'aux':
+                array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])#sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
+                # samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
+                # array_data_filt, z_sos_env= sosfilt(samples_raw.T, samples, zi=z_sos_env)
+            else:
+                samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
+                samples = np.abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
+                array_data_filt, z_sos_env= sosfilt(sos_env, samples, zi=z_sos_env)
+            array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
+            curr_force = np.median(array_data_scaled)
+            
+            if self.vis_chan_mode == 'aux':
+                curr_force = abs(np.mean(array_data_scaled)) - baseline
+                # print("using", baseline)
+                curr_force = curr_force*float(self.conv_factor.get())
+            else:
+                curr_force = abs(np.mean(array_data_scaled)) - baseline
+            print(curr_force)
+            if curr_force > max_force:
+                max_force = curr_force
+                self.max_force.set(str(max_force))
+                self.update()
+
         
         self.task_trial.write(False)
         self.inlet.inlet.close_stream()
+
+        cv2.destroyAllWindows()
 
         self.stop_tmsi()
         # showinfo(title='STOP MVC', message="STOP MVC")
         self.start_MVC_button.config(bg = 'green')
 
-    def do_sombrero(self):
-        max_force = float(self.max_force.get())
-        peak_ramp_force = float(self.peak_ramp_force.get())
-        trl_duration = float(self.trl_duration.get())
-        init_wait = float(self.init_wait.get())
-        sombrero_width = float(self.sombrero_width.get())
-        sombrero_ramp = float(self.sombrero_ramp.get())
-        sombrero_force = float(self.sombrero_force.get())
+    # def do_sombrero(self):
+    #     max_force = float(self.max_force.get())
+    #     peak_ramp_force = float(self.peak_ramp_force.get())
+    #     trl_duration = float(self.trl_duration.get())
+    #     init_wait = float(self.init_wait.get())
+    #     sombrero_width = float(self.sombrero_width.get())
+    #     sombrero_ramp = float(self.sombrero_ramp.get())
+    #     sombrero_force = float(self.sombrero_force.get())
 
-        self.target_profile_x = [0, init_wait, init_wait+sombrero_ramp, init_wait+sombrero_ramp+sombrero_width, trl_duration//2, 
-                                 trl_duration-init_wait-sombrero_ramp-sombrero_width, trl_duration-init_wait-sombrero_ramp, trl_duration-init_wait, trl_duration]
-        self.target_profile_y = [0, 0, max_force*sombrero_force, max_force*sombrero_force, max_force*peak_ramp_force, max_force*sombrero_force, max_force*sombrero_force, 0, 0]
-        assert len(self.target_profile_x) == len(self.target_profile_y)
+    #     self.target_profile_x = [0, init_wait, init_wait+sombrero_ramp, init_wait+sombrero_ramp+sombrero_width, trl_duration//2, 
+    #                              trl_duration-init_wait-sombrero_ramp-sombrero_width, trl_duration-init_wait-sombrero_ramp, trl_duration-init_wait, trl_duration]
+    #     self.target_profile_y = [0, 0, max_force*sombrero_force, max_force*sombrero_force, max_force*peak_ramp_force, max_force*sombrero_force, max_force*sombrero_force, 0, 0]
+    #     assert len(self.target_profile_x) == len(self.target_profile_y)
 
-        self.stim_profile_x = np.empty(0)
-        self.stim_profile_y = np.empty(0)
-        self.disp_target.clear()
+    #     self.stim_profile_x = np.empty(0)
+    #     self.stim_profile_y = np.empty(0)
+    #     self.disp_target.clear()
         
-        self.disp_target.set_xlabel("Time (s)", fontsize=14)
-        self.disp_target.set_ylabel("Torque (Nm)", fontsize=14)
-        self.disp_target.plot(self.target_profile_x, self.target_profile_y, linewidth = 5, color = 'r')
-        self.canvas_disp_target.draw()
-        self.start_vanilla_button.config(bg = 'yellow')
-        self.start_sombrero_button.config(bg = 'green')
+    #     self.disp_target.set_xlabel("Time (s)", fontsize=14)
+    #     self.disp_target.set_ylabel("Torque (Nm)", fontsize=14)
+    #     self.disp_target.plot(self.target_profile_x, self.target_profile_y, linewidth = 5, color = 'r')
+    #     self.canvas_disp_target.draw()
+    #     self.start_vanilla_button.config(bg = 'yellow')
+    #     self.start_sombrero_button.config(bg = 'green')
 
     def do_vanilla(self):
         max_force = float(self.max_force.get())
-        peak_ramp_force = float(self.peak_ramp_force.get())
-        trl_duration = float(self.trl_duration.get())
-        init_wait = float(self.init_wait.get())
-
-        self.target_profile_x = [0, init_wait, trl_duration//2, trl_duration-init_wait, trl_duration]
-        self.target_profile_y = [0, 0, peak_ramp_force*max_force, 0, 0]
+        # peak_ramp_force = float(self.peak_ramp_force.get())
+        # trl_duration = float(self.trl_duration.get())
+        # init_wait = float(self.init_wait.get())
+        x_profile = self.X_profile.get()
+        y_profile = self.Y_profile.get()
+        self.target_profile_x = np.array(x_profile.split(','),dtype = float)
+        self.target_profile_y = np.array(y_profile.split(','),dtype = float) * max_force
         assert len(self.target_profile_x) == len(self.target_profile_y)
         self.stim_profile_x = np.empty(0)
         self.stim_profile_y = np.empty(0)
@@ -1274,8 +1340,8 @@ class APP(tk.Toplevel):
         self.disp_target.plot(self.target_profile_x, self.target_profile_y, linewidth = 5, color = 'r')
         self.canvas_disp_target.draw()
 
-        self.start_sombrero_button.config(bg = 'yellow')
-        self.start_vanilla_button.config(bg = 'green')
+        # self.start_sombrero_button.config(bg = 'yellow')
+        # self.start_vanilla_button.config(bg = 'green')
 
     def stim_push(self):
         
