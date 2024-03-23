@@ -14,6 +14,8 @@ from collections import deque
 from scipy.io import savemat
 from tmsi_dual_interface.tmsi_libraries.TMSiFileFormats.file_writer import FileWriter, FileFormat
 from tmsi_dual_interface.tmsi_libraries.TMSiSDK.device import ChannelType
+from thermode.TcsControl_python3 import TcsDevice
+from thermode.heat_stim_gui import heat_gui
 import math
 import cv2
 import pylsl
@@ -69,7 +71,7 @@ class DataInlet_reset(Inlet):
         out = self.buffer
         self.buffer = np.empty(self.bufsize, dtype=self.dtypes[self.info])
         return out
-    
+
 class check_MEPs_win(tk.Toplevel):
     def __init__(self, parent, task_trial, task_stim, target_profile_x,target_profile_y,stim_profile_x,stim_profile_y, trial_params,dev_select='FLX', vis_chan_mode='avg', vis_chan = 10,vis_chan_mode_check='single', vis_chan_check = 35,record = False,):
         super().__init__(parent)
@@ -548,7 +550,7 @@ class APP(tk.Toplevel):
     def __init__(self,parent,tmsi,dump_path):
         super().__init__(parent)
         self.title('Force Ramp Interface')
-        self.geometry('1000x1000')
+        self.geometry('1400x1000')
         """
         Buttons
         """
@@ -604,23 +606,6 @@ class APP(tk.Toplevel):
         self.t_trial_ID.pack(fill='x', expand=True)
         self.t_trial_ID.focus()
         self.t_trial_ID.place(x=150, y=40, width = 50)
-
-        # self.check_dir_button = tk.Button(self, text='CHECK DIR', bg ='yellow')
-        # self.check_dir_button['command'] = self.check_dir
-        # self.check_dir_button.pack()
-        # self.check_dir_button.place(x=250, y=40)
-
-        # today = time.strftime("%Y%m%d")
-
-        # self.dump_path = tk.StringVar()
-        # self.lbl_dump_path = ttk.Label(self, text='Dump Path:')
-        # self.lbl_dump_path.pack(fill='x', expand=True)
-        # self.lbl_dump_path.place(x=10, y=70)
-        # self.t_dump_path = tk.Entry(self, textvariable=self.dump_path)
-        # self.t_dump_path.insert(0, "data/PX/"+today)
-        # self.t_dump_path.pack(fill='x', expand=True)
-        # self.t_dump_path.focus()
-        # self.t_dump_path.place(x=150, y=70, width = 500)
 
         self.daq_name = tk.StringVar()
         self.lbl_daq_name = ttk.Label(self, text='DAQ ID:')
@@ -703,7 +688,7 @@ class APP(tk.Toplevel):
         self.lbl_X_profile.pack(fill='x', expand=True)
         self.lbl_X_profile.place(x=10, y=330)
         self.t_X_profile = tk.Entry(self, textvariable=self.X_profile)
-        self.t_X_profile.insert(0,"0, 5, 20, 35, 70, 85, 100, 105")
+        self.t_X_profile.insert(0, "0, 5, 10, 25, 30, 35, 50, 55, 60")
         self.t_X_profile.pack(fill='x', expand=True)
         self.t_X_profile.focus()
         self.t_X_profile.place(x=150, y=330, width = 300)
@@ -713,20 +698,10 @@ class APP(tk.Toplevel):
         self.lbl_Y_profile.pack(fill='x', expand=True)
         self.lbl_Y_profile.place(x=10, y=360)
         self.t_Y_profile = tk.Entry(self, textvariable=self.Y_profile)
-        self.t_Y_profile.insert(0, "0, 0, 0.2, 0, 0, 0.2, 0, 0")
+        self.t_Y_profile.insert(0, "0, 0, 0.1, 0.1, 0.2, 0.1, 0.1, 0, 0")
         self.t_Y_profile.pack(fill='x', expand=True)
         self.t_Y_profile.focus()
         self.t_Y_profile.place(x=150, y=360, width = 300)
-
-        # self.peak_ramp_force = tk.StringVar()
-        # self.lbl_peak_ramp_force = ttk.Label(self, text='Max Ramp Force (x MVC):')
-        # self.lbl_peak_ramp_force.pack(fill='x', expand=True)
-        # self.lbl_peak_ramp_force.place(x=310, y=360)
-        # self.t_peak_ramp_force = tk.Entry(self, textvariable=self.peak_ramp_force)
-        # self.t_peak_ramp_force.insert(0, "0.3")
-        # self.t_peak_ramp_force.pack(fill='x', expand=True)
-        # self.t_peak_ramp_force.focus()
-        # self.t_peak_ramp_force.place(x=450, y=360, width = 100)
         
         self.lbl_max_force_num = ttk.Label(self, textvariable=self.max_force,font=('Helvetica 30 bold'))
         self.lbl_max_force_num.pack(fill='x', expand=True)
@@ -746,45 +721,12 @@ class APP(tk.Toplevel):
         self.start_vanilla_button.pack()
         self.start_vanilla_button.place(x=10, y=500)
         
-        # self.start_sombrero_button = tk.Button(self, text='PUSH SOMBRERO', bg ='yellow')
-        # self.start_sombrero_button['command'] = self.do_sombrero
-        # self.start_sombrero_button.pack()
-        # self.start_sombrero_button.place(x=310, y=400)
-
-        # self.sombrero_width = tk.StringVar()
-        # self.lbl_sombrero_width = ttk.Label(self, text='Sombrero hold (s):')
-        # self.lbl_sombrero_width.pack(fill='x', expand=True)
-        # self.lbl_sombrero_width.place(x=310, y=430)
-        # self.t_sombrero_width = tk.Entry(self, textvariable=self.sombrero_width)
-        # self.t_sombrero_width.insert(0, "10")
-        # self.t_sombrero_width.pack(fill='x', expand=True)
-        # self.t_sombrero_width.focus()
-        # self.t_sombrero_width.place(x=500, y=430, width = 100)
-
-        # self.sombrero_ramp = tk.StringVar()
-        # self.lbl_sombrero_ramp = ttk.Label(self, text='Sombrero ramp (s):')
-        # self.lbl_sombrero_ramp.pack(fill='x', expand=True)
-        # self.lbl_sombrero_ramp.place(x=310, y=460)
-        # self.t_sombrero_ramp = tk.Entry(self, textvariable=self.sombrero_ramp)
-        # self.t_sombrero_ramp.insert(0, "5")
-        # self.t_sombrero_ramp.pack(fill='x', expand=True)
-        # self.t_sombrero_ramp.focus()
-        # self.t_sombrero_ramp.place(x=500, y=460, width = 100)
-
-        # self.sombrero_force = tk.StringVar()
-        # self.lbl_sombrero_force = ttk.Label(self, text='Sombrero Ramp Force (x MVC):')
-        # self.lbl_sombrero_force.pack(fill='x', expand=True)
-        # self.lbl_sombrero_force.place(x=310, y=490)
-        # self.t_sombrero_force = tk.Entry(self, textvariable=self.sombrero_force)
-        # self.t_sombrero_force.insert(0, "0.15")
-        # self.t_sombrero_force.pack(fill='x', expand=True)
-        # self.t_sombrero_force.focus()
-        # self.t_sombrero_force.place(x=500, y=490, width = 100)
-
         self.target_profile_x = [0]
         self.target_profile_y = [0]
         self.stim_profile_x = np.empty(0)
         self.stim_profile_y = np.empty(0)
+        self.heat_profile_x = np.empty(0)
+        self.heat_profile_y = np.empty(0)
 
         self.stim_rate = tk.StringVar()
         self.lbl_stim_rate = ttk.Label(self, text='Interval b/w stim (s):')
@@ -866,6 +808,405 @@ class APP(tk.Toplevel):
         self.do_vanilla()
         self.trl_duration = self.target_profile_x[-1]
 
+
+        self.therm_1_name = tk.StringVar()
+        self.lbl_therm1 = ttk.Label(self, text='Port for Thermode 1:')
+        self.lbl_therm1.pack(fill='x', expand=True)
+        self.t_therm1 = tk.Entry(self, textvariable=self.therm_1_name)
+        self.t_therm1.insert(0, "COM2")
+        self.t_therm1.pack(fill='x', expand=True)
+        self.t_therm1.focus()
+        self.lbl_therm1.place(x=710, y=400)
+        self.t_therm1.place(x= 850, y=400)
+
+        self.therm_2_name = tk.StringVar()
+        self.lbl_therm2 = ttk.Label(self, text='Port for Thermode 2:')
+        self.lbl_therm2.pack(fill='x', expand=True)
+        self.t_therm2 = tk.Entry(self, textvariable=self.therm_2_name)
+        self.t_therm2.insert(0, "None")
+        self.t_therm2.pack(fill='x', expand=True)
+        self.t_therm2.focus()
+        self.lbl_therm2.place(x=710, y=430)
+        self.t_therm2.place(x=850, y=430)
+
+        self.dev_warn = ttk.Label(self, text='NOTE: Use "None" to not include thermode')
+        self.dev_warn.pack(fill='x', expand=True)
+        self.dev_warn.place(x=700, y=370)
+
+        self.init_therm_button = tk.Button(self, text='START THERMODE', bg ='yellow')
+        self.init_therm_button['command'] = self.init_therm
+        self.init_therm_button.pack()
+        self.init_therm_button.place(x=710, y=460)
+
+        self.stop_therm_button = tk.Button(self, text='STOP THERMODE', bg ='red')
+        self.stop_therm_button['command'] = self.stop_therm
+        self.stop_therm_button.pack()
+        self.stop_therm_button.place(x=850, y=460)
+
+        self.therm1_param_title = ttk.Label(self, text='Config params for thermode 1')
+        self.therm1_param_title.pack(fill='x', expand=True)
+        self.therm1_param_title.place(x=710, y=500)
+
+        self.therm1_baseline = tk.StringVar()
+        self.lbl_therm1_bl = ttk.Label(self, text='Baseline temp (C):')
+        self.lbl_therm1_bl.pack(fill='x', expand=True)
+        self.t_therm1_bl = tk.Entry(self, textvariable=self.therm1_baseline)
+        self.t_therm1_bl.insert(0, "31.0")
+        self.t_therm1_bl.pack(fill='x', expand=True)
+        self.t_therm1_bl.focus()
+        self.lbl_therm1_bl.place(x=710, y=530)
+        self.t_therm1_bl.place(x=850, y=530)
+
+        self.therm1_hold_duration = tk.StringVar()
+        self.lbl_therm1_hold = ttk.Label(self, text='Holding duration (s):')
+        self.lbl_therm1_hold.pack(fill='x', expand=True)
+        self.t_therm1_hold = tk.Entry(self, textvariable=self.therm1_hold_duration)
+        self.t_therm1_hold.insert(0, "5")
+        self.t_therm1_hold.pack(fill='x', expand=True)
+        self.t_therm1_hold.focus()
+        self.lbl_therm1_hold.place(x=710, y=560)
+        self.t_therm1_hold.place(x=850, y=560)
+
+        self.therm1_tgt_temp = tk.StringVar()
+        self.lbl_therm1_tgt_temp = ttk.Label(self, text='Holding temp (C):')
+        self.lbl_therm1_tgt_temp.pack(fill='x', expand=True)
+        self.t_therm1_tgt_temp = tk.Entry(self, textvariable=self.therm1_tgt_temp)
+        self.t_therm1_tgt_temp.insert(0, "40")
+        self.t_therm1_tgt_temp.pack(fill='x', expand=True)
+        self.t_therm1_tgt_temp.focus()
+        self.lbl_therm1_tgt_temp.place(x=710, y=590)
+        self.t_therm1_tgt_temp.place(x=850, y=590)
+
+        self.therm1_ramp_down_rate = tk.StringVar()
+        self.lbl_therm1_ramp_down_rate = ttk.Label(self, text='Ramp down rate (C/s):')
+        self.lbl_therm1_ramp_down_rate.pack(fill='x', expand=True)
+        self.lbl_therm1_ramp_down_rate.place(x=710, y=620)
+        self.t_therm1_ramp_down_rate = tk.Entry(self, textvariable=self.therm1_ramp_down_rate)
+        self.t_therm1_ramp_down_rate.insert(0, "100")
+        self.t_therm1_ramp_down_rate.pack(fill='x', expand=True)
+        self.t_therm1_ramp_down_rate.focus()
+        self.t_therm1_ramp_down_rate.place(x=850, y=620)
+
+        self.therm1_ramp_up_rate = tk.StringVar()
+        self.lbl_therm1_ramp_up_rate = ttk.Label(self, text='Ramp up rate (C/s):')
+        self.lbl_therm1_ramp_up_rate.pack(fill='x', expand=True)
+        self.t_therm1_ramp_up_rate = tk.Entry(self, textvariable=self.therm1_ramp_up_rate)
+        self.t_therm1_ramp_up_rate.insert(0, "100")
+        self.t_therm1_ramp_up_rate.pack(fill='x', expand=True)
+        self.t_therm1_ramp_up_rate.focus()
+        self.lbl_therm1_ramp_up_rate.place(x=710, y=650)
+        self.t_therm1_ramp_up_rate.place(x=850, y=650)
+
+        self.therm1_start_time = tk.StringVar()
+        self.lbl_therm1_start_time = ttk.Label(self, text='Start time (s):')
+        self.lbl_therm1_start_time.pack(fill='x', expand=True)
+        self.t_therm1_start_time = tk.Entry(self, textvariable=self.therm1_start_time)
+        self.t_therm1_start_time.insert(0, "12")
+        self.t_therm1_start_time.pack(fill='x', expand=True)
+        self.t_therm1_start_time.focus()
+        self.lbl_therm1_start_time.place(x=710, y=675)
+        self.t_therm1_start_time.place(x=850, y=675)
+
+        self.therm1_contact_title = ttk.Label(self, text='Select contacts for thermode 1 (green event)')
+        self.therm1_contact_title.pack(fill='x', expand=True)
+        self.therm1_contact_title.place(x=1100, y=500)
+
+        self.t1_c1_check = tk.IntVar()
+        self.t1_c2_check = tk.IntVar()
+        self.t1_c3_check = tk.IntVar()
+        self.t1_c4_check = tk.IntVar()
+        self.t1_c5_check = tk.IntVar()
+
+        self.therm1_c1 = tk.Checkbutton(self, text='Contact 1',variable=self.t1_c1_check, onvalue=1, offvalue=0, command= self.select_contacts)
+        self.therm1_c1.pack()
+        self.therm1_c1.place(x=1100, y=530)
+        self.t1_c1_check.set(1)
+
+        self.therm1_c2 = tk.Checkbutton(self, text='Contact 2',variable=self.t1_c2_check, onvalue=1, offvalue=0, command=self.select_contacts)
+        self.therm1_c2.pack()
+        self.therm1_c2.place(x=1100, y=560)
+        self.t1_c2_check.set(0)
+
+        self.therm1_c3 = tk.Checkbutton(self, text='Contact 3',variable=self.t1_c3_check, onvalue=1, offvalue=0, command=self.select_contacts)
+        self.therm1_c3.pack()
+        self.therm1_c3.place(x=1100, y=590)
+        self.t1_c3_check.set(0)
+
+        self.therm1_c4 = tk.Checkbutton(self, text='Contact 4',variable=self.t1_c4_check, onvalue=1, offvalue=0, command=self.select_contacts)
+        self.therm1_c4.pack()
+        self.therm1_c4.place(x=1100, y=620)
+        self.t1_c4_check.set(0)
+
+        self.therm1_c5 = tk.Checkbutton(self, text='Contact 5',variable=self.t1_c5_check, onvalue=1, offvalue=0, command= self.select_contacts)
+        self.therm1_c5.pack()
+        self.therm1_c5.place(x=1100, y=650)
+        self.t1_c5_check.set(0)
+
+
+        self.therm2_param_title = ttk.Label(self, text='Config params for thermode 2 (only read if 2 thermodes are init)')
+        self.therm2_param_title.pack(fill='x', expand=True)
+        self.therm2_param_title.place(x=710, y=700)
+
+        self.therm2_baseline = tk.StringVar()
+        self.lbl_therm2_bl = ttk.Label(self, text='Baseline temp (C):')
+        self.lbl_therm2_bl.pack(fill='x', expand=True)
+        self.t_therm2_bl = tk.Entry(self, textvariable=self.therm2_baseline)
+        self.t_therm2_bl.insert(0, "31.0")
+        self.t_therm2_bl.pack(fill='x', expand=True)
+        self.t_therm2_bl.focus()
+        self.lbl_therm2_bl.place(x=710, y=730)
+        self.t_therm2_bl.place(x=850, y=730)
+
+        self.therm2_hold_duration = tk.StringVar()
+        self.lbl_therm2_hold = ttk.Label(self, text='Holding duration (s):')
+        self.lbl_therm2_hold.pack(fill='x', expand=True)
+        self.t_therm2_hold = tk.Entry(self, textvariable=self.therm2_hold_duration)
+        self.t_therm2_hold.insert(0, "5")
+        self.t_therm2_hold.pack(fill='x', expand=True)
+        self.t_therm2_hold.focus()
+        self.lbl_therm2_hold.place(x=710, y=760)
+        self.t_therm2_hold.place(x=850, y=760)
+
+        self.therm2_tgt_temp = tk.StringVar()
+        self.lbl_therm2_tgt_temp = ttk.Label(self, text='Holding temp (C):')
+        self.lbl_therm2_tgt_temp.pack(fill='x', expand=True)
+        self.t_therm2_tgt_temp = tk.Entry(self, textvariable=self.therm2_tgt_temp)
+        self.t_therm2_tgt_temp.insert(0, "40")
+        self.t_therm2_tgt_temp.pack(fill='x', expand=True)
+        self.t_therm2_tgt_temp.focus()
+        self.lbl_therm2_tgt_temp.place(x=710, y=790)
+        self.t_therm2_tgt_temp.place(x=850, y=790)
+
+        self.therm2_ramp_down_rate = tk.StringVar()
+        self.lbl_therm2_ramp_down_rate = ttk.Label(self, text='Ramp down rate (C/s):')
+        self.lbl_therm2_ramp_down_rate.pack(fill='x', expand=True)
+        self.lbl_therm2_ramp_down_rate.place(x=710, y=820)
+        self.t_therm2_ramp_down_rate = tk.Entry(self, textvariable=self.therm2_ramp_down_rate)
+        self.t_therm2_ramp_down_rate.insert(0, "100")
+        self.t_therm2_ramp_down_rate.pack(fill='x', expand=True)
+        self.t_therm2_ramp_down_rate.focus()
+        self.t_therm2_ramp_down_rate.place(x=850, y=820)
+
+        self.therm2_ramp_up_rate = tk.StringVar()
+        self.lbl_therm2_ramp_up_rate = ttk.Label(self, text='Ramp up rate (C/s):')
+        self.lbl_therm2_ramp_up_rate.pack(fill='x', expand=True)
+        self.t_therm2_ramp_up_rate = tk.Entry(self, textvariable=self.therm2_ramp_up_rate)
+        self.t_therm2_ramp_up_rate.insert(0, "100")
+        self.t_therm2_ramp_up_rate.pack(fill='x', expand=True)
+        self.t_therm2_ramp_up_rate.focus()
+        self.lbl_therm2_ramp_up_rate.place(x=710, y=850)
+        self.t_therm2_ramp_up_rate.place(x=850, y=850)
+
+        self.therm2_start_time = tk.StringVar()
+        self.lbl_therm2_start_time = ttk.Label(self, text='Start time (s):')
+        self.lbl_therm2_start_time.pack(fill='x', expand=True)
+        self.t_therm2_start_time = tk.Entry(self, textvariable=self.therm2_start_time)
+        self.t_therm2_start_time.insert(0, "12")
+        self.t_therm2_start_time.pack(fill='x', expand=True)
+        self.t_therm2_start_time.focus()
+        self.lbl_therm2_start_time.place(x=710, y=875)
+        self.t_therm2_start_time.place(x=850, y=875)
+
+        self.therm2_contact_title = ttk.Label(self, text='Select contacts for thermode 2 (Green event)')
+        self.therm2_contact_title.pack(fill='x', expand=True)
+        self.therm2_contact_title.place(x=1100, y=700)
+
+        self.t2_c1_check = tk.IntVar()
+        self.t2_c2_check = tk.IntVar()
+        self.t2_c3_check = tk.IntVar()
+        self.t2_c4_check = tk.IntVar()
+        self.t2_c5_check = tk.IntVar()
+
+        self.therm2_c1 = tk.Checkbutton(self, text='Contact 1',variable=self.t2_c1_check, onvalue=1, offvalue=0, command= self.select_contacts)
+        self.therm2_c1.pack()
+        self.therm2_c1.place(x=1100, y=730)
+        self.t2_c1_check.set(1)
+
+        self.therm2_c2 = tk.Checkbutton(self, text='Contact 2',variable=self.t2_c2_check, onvalue=1, offvalue=0, command=self.select_contacts)
+        self.therm2_c2.pack()
+        self.therm2_c2.place(x=1100, y=760)
+        self.t2_c2_check.set(0)
+
+        self.therm2_c3 = tk.Checkbutton(self, text='Contact 3',variable=self.t2_c3_check, onvalue=1, offvalue=0, command=self.select_contacts)
+        self.therm2_c3.pack()
+        self.therm2_c3.place(x=1100, y=790)
+        self.t2_c3_check.set(0)
+
+        self.therm2_c4 = tk.Checkbutton(self, text='Contact 4',variable=self.t2_c4_check, onvalue=1, offvalue=0, command=self.select_contacts)
+        self.therm2_c4.pack()
+        self.therm2_c4.place(x=1100, y=820)
+        self.t2_c4_check.set(0)
+
+        self.therm2_c5 = tk.Checkbutton(self, text='Contact 5',variable=self.t2_c5_check, onvalue=1, offvalue=0, command= self.select_contacts)
+        self.therm2_c5.pack()
+        self.therm2_c5.place(x=1100, y=850)
+        self.t2_c5_check.set(0)
+
+        self.push_therm_config_button = tk.Button(self, text='PUSH CONFIG', bg ='yellow')
+        self.push_therm_config_button['command'] = self.push_therm_config
+        self.push_therm_config_button.pack()
+        self.push_therm_config_button.place(x=710, y=900)
+
+        self.clear_therm_config_button = tk.Button(self, text='CLEAR CONFIG', bg ='yellow')
+        self.clear_therm_config_button['command'] = self.clear_therm_config
+        self.clear_therm_config_button.pack()
+        self.clear_therm_config_button.place(x=810, y=900)
+
+        # self.lbl_max_temp = ttk.Label(self, text="Max Temp",font=('Helvetica 16 bold'))
+        # self.lbl_max_temp.pack(fill='x', expand=True)
+        # self.lbl_max_temp.place(x=1000, y=370)
+        # self.max_temp = tk.StringVar()
+        # self.max_temp.set('40')
+
+        # self.lbl_max_temp_num = ttk.Label(self, textvariable=self.max_temp,font=('Helvetica 30 bold'))
+        # self.lbl_max_temp_num.pack(fill='x', expand=True)
+        # self.lbl_max_temp_num.place(x=1000, y=400)
+        # self.t_max_temp_num = tk.Entry(self, textvariable=self.max_temp)
+        # self.t_max_temp_num.pack(fill='x', expand=True)
+        # self.t_max_temp_num.focus()
+        # self.t_max_temp_num.place(x=1000, y=450, width = 200)
+
+    def clear_therm_config(self):
+        self.heat_dict = {}
+        self.heat_profile_x = np.empty(0)
+        self.heat_profile_y = np.empty(0)
+        assert len(self.target_profile_x) == len(self.target_profile_y)
+        self.disp_target.clear()
+        self.canvas_disp_target.draw()
+        self.do_vanilla()
+        # self.push_dict = self.therm_param_list_gen(self.therm_params, self.therm_select)
+        # for key in self.thermodes.keys():
+        #     self.thermodes[key].set_baseline(self.push_dict[key]["BL"])
+        #     self.thermodes[key].set_durations(self.push_dict[key]["HOLD"])
+        #     self.thermodes[key].set_ramp_speed(self.push_dict[key]["URATE"])
+        #     self.thermodes[key].set_return_speed(self.push_dict[key]["DRATE"])
+        #     self.thermodes[key].set_temperatures(self.push_dict[key]["TGT"])
+        # showinfo(title='Thermode param sent', message="Set Thermodes to Baseline")
+
+    def select_contacts(self):
+        self.therm_select = {}
+        keys = list(self.thermodes.keys())
+        if len(self.thermodes)==1:
+            self.therm_select[keys[0]] = np.array([self.t1_c1_check.get(),
+                                          self.t1_c2_check.get(),
+                                          self.t1_c3_check.get(),
+                                          self.t1_c4_check.get(),
+                                          self.t1_c5_check.get(),
+                                          ])
+        else:
+            self.therm_select[keys[0]] = np.array([self.t1_c1_check.get(),
+                                          self.t1_c2_check.get(),
+                                          self.t1_c3_check.get(),
+                                          self.t1_c4_check.get(),
+                                          self.t1_c5_check.get(),
+                                          ])
+            self.therm_select[keys[1]] = np.array([self.t2_c1_check.get(),
+                                          self.t2_c2_check.get(),
+                                          self.t2_c3_check.get(),
+                                          self.t2_c4_check.get(),
+                                          self.t2_c5_check.get(),
+                                          ])
+
+    def therm_param_list_gen(self,therm_params, contact_select, key):
+        push_dict = {}
+        for key2 in therm_params[key].keys():
+            if key2 == 'TGT':
+                push_dict[key2] = np.ones(5)*therm_params[key]["BL"]
+                push_dict[key2][np.where(contact_select[key]==1)[0]] = np.ones(np.sum(contact_select[key]))*therm_params[key][key2]
+            else:
+                push_dict[key2] = np.ones(5)*therm_params[key][key2]
+        return push_dict
+
+    def push_therm_config(self):
+        self.therm_params = {}
+        keys = list(self.thermodes.keys())
+        stim_ctr = len(self.heat_dict)
+        if len(self.thermodes)==1:
+            self.therm_params[keys[0]] = {
+                "BL" : float(self.therm1_baseline.get()),
+                "TGT" : float(self.therm1_tgt_temp.get()),
+                "HOLD" : float(self.therm1_hold_duration.get()),
+                "DRATE" : float(self.therm1_ramp_down_rate.get()),
+                "URATE" : float(self.therm1_ramp_up_rate.get()),
+                }
+            self.heat_dict[stim_ctr+1] = {}
+            self.heat_dict[stim_ctr+1][keys[0]] = self.therm_param_list_gen(self.therm_params,self.therm_select,keys[0])
+            self.heat_dict[stim_ctr+1][keys[0]]["INIT"] = float(self.therm1_start_time.get())
+
+            self.heat_profile_y = np.concatenate((self.heat_profile_y,[1]))
+            self.heat_profile_x = np.unique(np.concatenate((self.heat_profile_x,[float(self.therm1_start_time.get())])))
+            assert float(self.therm1_tgt_temp.get()) < 50
+        else:
+            self.therm_params[keys[0]] = {
+                "BL" : float(self.therm1_baseline.get()),
+                "TGT" : float(self.therm1_tgt_temp.get()),
+                "HOLD" : float(self.therm1_hold_duration.get()),
+                "DRATE" : float(self.therm1_ramp_down_rate.get()),
+                "URATE" : float(self.therm1_ramp_up_rate.get()),
+                }
+            self.therm_params[keys[1]] = {
+                "BL" : float(self.therm2_baseline.get()),
+                "TGT" : float(self.therm2_tgt_temp.get()),
+                "HOLD" : float(self.therm2_hold_duration.get()),
+                "DRATE" : float(self.therm2_ramp_down_rate.get()),
+                "URATE" : float(self.therm2_ramp_up_rate.get()),
+                }
+            self.heat_dict[stim_ctr+1] = {}
+            self.heat_dict[stim_ctr+1][keys[0]] = self.therm_param_list_gen(self.therm_params,self.therm_select,keys[0])
+            self.heat_dict[stim_ctr+1][keys[0]]["INIT"] = float(self.therm1_start_time.get())
+            self.heat_dict[stim_ctr+1][keys[1]] = self.therm_param_list_gen(self.therm_params,self.therm_select,keys[1])
+            self.heat_dict[stim_ctr+1][keys[1]]["INIT"] = float(self.therm2_start_time.get())
+
+
+            self.heat_profile_y = np.concatenate((self.heat_profile_y,[1],[1]))
+            self.heat_profile_x = np.unique(np.concatenate((self.heat_profile_x,[float(self.therm1_start_time.get())],[float(self.therm2_start_time.get())])))
+            assert float(self.therm2_tgt_temp.get()) < 50
+            assert float(self.therm1_tgt_temp.get()) < 50
+
+
+
+        self.disp_target.vlines(self.heat_profile_x,0,np.max(self.target_profile_y), linewidth = 3, color = 'g')
+        self.canvas_disp_target.draw()
+
+        # for key in self.heat_dict.keys():
+        #     self.disp_target.vlines(self.heat_profile_x,0,np.max(self.target_profile_y), linewidth = 3, color = 'k')
+        # self.canvas_disp_target.draw()
+
+        # for key in self.thermodes.keys():
+        #     self.thermodes[key].set_baseline(self.push_dict[key]["BL"])
+        #     self.thermodes[key].set_durations(self.push_dict[key]["HOLD"])
+        #     self.thermodes[key].set_ramp_speed(self.push_dict[key]["URATE"])
+        #     self.thermodes[key].set_return_speed(self.push_dict[key]["DRATE"])
+        #     self.thermodes[key].set_temperatures(self.push_dict[key]["TGT"])
+        # showinfo(title='Thermode param sent', message="Pushed params to Thermode")
+
+    def init_therm(self):
+        label_1 = str(self.therm_1_name.get())
+        label_2 = str(self.therm_2_name.get())
+        self.thermodes = {label_1:0,label_2:1}
+        self.heat_dict ={}
+        # if label_2 != 'None':
+        #     self.thermodes[label_1] = TcsDevice(port=label_1)
+        #     self.thermodes[label_1].set_quiet()
+        #     self.heat_dict[label_1]={}
+        #     self.thermodes[label_2] = TcsDevice(port=label_2)
+        #     self.thermodes[label_2].set_quiet()
+        #     self.heat_dict[label_2]={}
+        # else:
+        #     self.thermodes[label_1] = TcsDevice(port=label_1)
+        #     self.thermodes[label_1].set_quiet()
+        #     self.heat_dict[label_1]={}
+        self.select_contacts()
+        self.stop_therm_button.config(bg = 'red')
+        self.init_therm_button.config(bg = 'green')
+        showinfo(title='Thermode started', message="Started "+str(len(self.thermodes))+" Thermode")
+        
+    def stop_therm(self):
+        for key in self.thermodes.keys():
+            self.thermodes[key].close()
+        self.init_therm_button.config(bg = 'yellow')
+        self.stop_therm_button.config(bg = 'red')
+
     def start_rec(self,):
         self.task_trial.write(False)
         print('starting')
@@ -876,41 +1217,71 @@ class APP(tk.Toplevel):
             "duration": self.trl_duration,
             "MVF": float(self.max_force.get()),
             }
-        
-        # ### TODO SET DAQ Trigs for trail start
-        # self.task_stim= [] 
-        # self.task_trial = []
-        window = display_force_data(self, self.task_trial, 
-                                    self.task_stim, 
-                                    self.target_profile_x,
-                                    self.target_profile_y,
-                                    self.stim_profile_x,
-                                    self.stim_profile_y,
-                                    trial_params,
-                                    dev_select=self.vis_TMSi.get(),
-                                    vis_chan_mode = self.vis_chan_mode.get(),
-                                    vis_chan = self.vis_chan.get(),
-                                    record=True
-                                    )
-        window.grab_set()
-        self.wait_window(window)
+        if len(self.heat_dict)==0:
+            window = display_force_data(self, self.task_trial, 
+                                        self.task_stim, 
+                                        self.target_profile_x,
+                                        self.target_profile_y,
+                                        self.stim_profile_x,
+                                        self.stim_profile_y,
+                                        trial_params,
+                                        dev_select=self.vis_TMSi.get(),
+                                        vis_chan_mode = self.vis_chan_mode.get(),
+                                        vis_chan = self.vis_chan.get(),
+                                        record=True
+                                        )
+            window.grab_set()
+            self.wait_window(window)
 
-        out_mat = {
-            "time": np.array(self.dump_time),
-            "force": np.array(self.dump_force),
-            "trigs": np.array(self.dump_trig),
-            "target_profile": np.array((self.target_profile_x,self.target_profile_y)).T,
-            "MVC": float(self.max_force.get())
-                   }
-        savemat(os.path.join(self.dump_path,'trial_'+ self.trial_ID.get()+'_'+str(start_time)+'_profiles'+".mat"), out_mat)
-        self.task_trial.write(False)
+            out_mat = {
+                "time": np.array(self.dump_time),
+                "force": np.array(self.dump_force),
+                "trigs": np.array(self.dump_trig),
+                "heat": np.array(self.dump_heat),
+                "target_profile": np.array((self.target_profile_x,self.target_profile_y)).T,
+                "MVC": float(self.max_force.get())
+                    }
+            savemat(os.path.join(self.dump_path,'trial_'+ self.trial_ID.get()+'_'+str(start_time)+'_profiles'+".mat"), out_mat)
+            self.task_trial.write(False)
+            self.stop_tmsi()
+            self.trial_ID.set(str(int(self.trial_ID.get())+1))
+            current_trial = int(self.trial_ID.get())
+            self.t_trial_ID.delete(0, 'end')
+            self.t_trial_ID.insert(0, str(current_trial))
+            self.update()
+        else:
+            window = heat_gui(self, self.task_trial, 
+                                        self.task_stim, 
+                                        self.target_profile_x,
+                                        self.target_profile_y,
+                                        np.unique(self.heat_profile_x),
+                                        self.heat_profile_y,
+                                        trial_params,
+                                        dev_select=self.vis_TMSi.get(),
+                                        vis_chan_mode = self.vis_chan_mode.get(),
+                                        vis_chan = self.vis_chan.get(),
+                                        record=True,
+                                        heat_dict = self.heat_dict,
+                                        thermodes = self.thermodes,
+                                        )
+            window.grab_set()
+            self.wait_window(window)
 
-        self.stop_tmsi()
-        self.trial_ID.set(str(int(self.trial_ID.get())+1))
-        current_trial = int(self.trial_ID.get())
-        self.t_trial_ID.delete(0, 'end')
-        self.t_trial_ID.insert(0, str(current_trial))
-        self.update()
+            out_mat = {
+                "time": np.array(self.dump_time),
+                "force": np.array(self.dump_force),
+                "trigs": np.array(self.dump_trig),
+                "target_profile": np.array((self.target_profile_x,self.target_profile_y)).T,
+                "MVC": float(self.max_force.get())
+                    }
+            savemat(os.path.join(self.dump_path,'trial_'+ self.trial_ID.get()+'_'+str(start_time)+'_profiles'+".mat"), out_mat)
+            self.task_trial.write(False)
+            self.stop_tmsi()
+            self.trial_ID.set(str(int(self.trial_ID.get())+1))
+            current_trial = int(self.trial_ID.get())
+            self.t_trial_ID.delete(0, 'end')
+            self.t_trial_ID.insert(0, str(current_trial))
+            self.update()
 
     def set_vis_mode(self):
         self.vis_chan_drop['menu'].delete(0, 'end')
@@ -1060,15 +1431,6 @@ class APP(tk.Toplevel):
         self.wait_window(window)
         self.stop_tmsi(flag='rec')
         self.update()
-
-    # def check_dir(self):
-    #     dump_name = self.dump_path.get()
-    #     if not os.path.isdir(dump_name):
-    #         print("Dir not found, making it")
-    #         # os.makedirs(dump_name)
-    #         os.makedirs(dump_name+'/MEPs')
-    #         os.makedirs(dump_name+'/MVC')
-    #     self.check_dir_button.config(bg = 'green')
 
     def start_DAQ(self):
         daq_name = self.daq_name.get()
@@ -1298,31 +1660,6 @@ class APP(tk.Toplevel):
         # showinfo(title='STOP MVC', message="STOP MVC")
         self.start_MVC_button.config(bg = 'green')
 
-    # def do_sombrero(self):
-    #     max_force = float(self.max_force.get())
-    #     peak_ramp_force = float(self.peak_ramp_force.get())
-    #     trl_duration = float(self.trl_duration.get())
-    #     init_wait = float(self.init_wait.get())
-    #     sombrero_width = float(self.sombrero_width.get())
-    #     sombrero_ramp = float(self.sombrero_ramp.get())
-    #     sombrero_force = float(self.sombrero_force.get())
-
-    #     self.target_profile_x = [0, init_wait, init_wait+sombrero_ramp, init_wait+sombrero_ramp+sombrero_width, trl_duration//2, 
-    #                              trl_duration-init_wait-sombrero_ramp-sombrero_width, trl_duration-init_wait-sombrero_ramp, trl_duration-init_wait, trl_duration]
-    #     self.target_profile_y = [0, 0, max_force*sombrero_force, max_force*sombrero_force, max_force*peak_ramp_force, max_force*sombrero_force, max_force*sombrero_force, 0, 0]
-    #     assert len(self.target_profile_x) == len(self.target_profile_y)
-
-    #     self.stim_profile_x = np.empty(0)
-    #     self.stim_profile_y = np.empty(0)
-    #     self.disp_target.clear()
-        
-    #     self.disp_target.set_xlabel("Time (s)", fontsize=14)
-    #     self.disp_target.set_ylabel("Torque (Nm)", fontsize=14)
-    #     self.disp_target.plot(self.target_profile_x, self.target_profile_y, linewidth = 5, color = 'r')
-    #     self.canvas_disp_target.draw()
-    #     self.start_vanilla_button.config(bg = 'yellow')
-    #     self.start_sombrero_button.config(bg = 'green')
-
     def do_vanilla(self):
         max_force = float(self.max_force.get())
         # peak_ramp_force = float(self.peak_ramp_force.get())
@@ -1335,13 +1672,15 @@ class APP(tk.Toplevel):
         assert len(self.target_profile_x) == len(self.target_profile_y)
         self.stim_profile_x = np.empty(0)
         self.stim_profile_y = np.empty(0)
+        self.heat_profile_x = np.empty(0)
+        self.heat_profile_y = np.empty(0)
 
         self.disp_target.clear()
         self.disp_target.set_xlabel("Time (s)", fontsize=14)
         self.disp_target.set_ylabel("Torque (Nm)", fontsize=14)
         self.disp_target.plot(self.target_profile_x, self.target_profile_y, linewidth = 5, color = 'r')
         self.canvas_disp_target.draw()
-
+        self.heat_dict = {}
         self.trl_duration = self.target_profile_x[-1]
         # self.start_sombrero_button.config(bg = 'yellow')
         # self.start_vanilla_button.config(bg = 'green')
@@ -1368,6 +1707,7 @@ class APP(tk.Toplevel):
         assert len(self.target_profile_x) == len(self.target_profile_y)
         self.disp_target.clear()
         self.canvas_disp_target.draw()
+        self.do_vanilla()
 
 
 def main():

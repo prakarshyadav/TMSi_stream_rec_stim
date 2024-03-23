@@ -39,7 +39,7 @@ thermode.set_temperatures(temperatures)
 thermode.stimulate()    
 
 # record stimulation temperatures
-recordDuration = max(durations)+1.0;
+recordDuration = max(durations)+1.0
 cpt = 0
 start_time = time.time()
 column_names = ["temp_1", "temp_2", "temp_3", "temp_4", "temp_5"]
