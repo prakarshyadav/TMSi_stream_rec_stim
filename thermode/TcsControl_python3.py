@@ -10,7 +10,7 @@ Date: 26th May 2021
 """
 
 import serial
-
+import numpy as np
 
 class TcsDevice:
     def __init__(self, port='/dev/ttyACM0'):
@@ -47,6 +47,7 @@ class TcsDevice:
         sets baseline temperature in °C (also called neutral temperature)
         :param baselineTemp: 1 float value (min 20°C, max 40°C)
         """
+        baselineTemp = np.mean(baselineTemp)
         if baselineTemp > 40:
             baselineTemp = 40
         if baselineTemp < 20:

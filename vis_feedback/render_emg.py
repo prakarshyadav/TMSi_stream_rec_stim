@@ -813,7 +813,7 @@ class APP(tk.Toplevel):
         self.lbl_therm1 = ttk.Label(self, text='Port for Thermode 1:')
         self.lbl_therm1.pack(fill='x', expand=True)
         self.t_therm1 = tk.Entry(self, textvariable=self.therm_1_name)
-        self.t_therm1.insert(0, "COM2")
+        self.t_therm1.insert(0, "COM12")
         self.t_therm1.pack(fill='x', expand=True)
         self.t_therm1.focus()
         self.lbl_therm1.place(x=710, y=400)
@@ -1183,19 +1183,19 @@ class APP(tk.Toplevel):
     def init_therm(self):
         label_1 = str(self.therm_1_name.get())
         label_2 = str(self.therm_2_name.get())
-        self.thermodes = {label_1:0,label_2:1}
+        self.thermodes = {}
         self.heat_dict ={}
-        # if label_2 != 'None':
-        #     self.thermodes[label_1] = TcsDevice(port=label_1)
-        #     self.thermodes[label_1].set_quiet()
-        #     self.heat_dict[label_1]={}
-        #     self.thermodes[label_2] = TcsDevice(port=label_2)
-        #     self.thermodes[label_2].set_quiet()
-        #     self.heat_dict[label_2]={}
-        # else:
-        #     self.thermodes[label_1] = TcsDevice(port=label_1)
-        #     self.thermodes[label_1].set_quiet()
-        #     self.heat_dict[label_1]={}
+        if label_2 != 'None':
+            self.thermodes[label_1] = TcsDevice(port=label_1)
+            self.thermodes[label_1].set_quiet()
+            # self.heat_dict[label_1]={}
+            self.thermodes[label_2] = TcsDevice(port=label_2)
+            self.thermodes[label_2].set_quiet()
+            # self.heat_dict[label_2]={}
+        else:
+            self.thermodes[label_1] = TcsDevice(port=label_1)
+            self.thermodes[label_1].set_quiet()
+            # self.heat_dict[label_1]={}
         self.select_contacts()
         self.stop_therm_button.config(bg = 'red')
         self.init_therm_button.config(bg = 'green')
@@ -1237,7 +1237,6 @@ class APP(tk.Toplevel):
                 "time": np.array(self.dump_time),
                 "force": np.array(self.dump_force),
                 "trigs": np.array(self.dump_trig),
-                "heat": np.array(self.dump_heat),
                 "target_profile": np.array((self.target_profile_x,self.target_profile_y)).T,
                 "MVC": float(self.max_force.get())
                     }
@@ -1271,12 +1270,16 @@ class APP(tk.Toplevel):
                 "time": np.array(self.dump_time),
                 "force": np.array(self.dump_force),
                 "trigs": np.array(self.dump_trig),
+                "heat": np.array(self.dump_heat),
                 "target_profile": np.array((self.target_profile_x,self.target_profile_y)).T,
                 "MVC": float(self.max_force.get())
                     }
-            savemat(os.path.join(self.dump_path,'trial_'+ self.trial_ID.get()+'_'+str(start_time)+'_profiles'+".mat"), out_mat)
+            """
+            Sometimes mat file writing may be inconsistent
+            """
             self.task_trial.write(False)
             self.stop_tmsi()
+            savemat(os.path.join(self.dump_path,'trial_'+ self.trial_ID.get()+'_'+str(start_time)+'_profiles'+".mat"), out_mat)
             self.trial_ID.set(str(int(self.trial_ID.get())+1))
             current_trial = int(self.trial_ID.get())
             self.t_trial_ID.delete(0, 'end')

@@ -162,8 +162,9 @@ class heat_gui(tk.Toplevel):
         stim_ctr = 0
         curr_pulse_time = 1e16
         heat_dict = {1:12,2:13,3:24 }
+        keys_temp = list(self.thermodes.keys())
         if stim_ctr<len(self.heat_dict):
-            curr_pulse_time = self.heat_dict[1]["INIT"]
+            curr_pulse_time = self.heat_dict[1][keys_temp[0]]["INIT"]
         baseline = 0
         while time.time()-t0 < self.trial_params['duration'] and not self.kill:
             time.sleep(0.0001)
@@ -174,8 +175,9 @@ class heat_gui(tk.Toplevel):
                 stim = True
                 self.task_stim.write(True)
                 stim_ctr+=1
-                if stim_ctr<len(len(self.heat_dict)):
-                    curr_pulse_time = self.heat_dict[stim_ctr+1]["INIT"]
+                
+                if stim_ctr<len(self.heat_dict):
+                    curr_pulse_time = self.heat_dict[stim_ctr+1][keys_temp[0]]["INIT"]
                 else:
                     curr_pulse_time += self.trial_params['duration']
                 self.trig_holder.append(1)
@@ -183,10 +185,10 @@ class heat_gui(tk.Toplevel):
                 for key in self.thermodes.keys():
                     self.thermodes[key].set_quiet()
                     self.thermodes[key].set_baseline(self.heat_dict[stim_ctr][key]["BL"])
-                    self.thermodes[key].set_durations(self.heat_dict[stim_ctr][key]["HOLD"])
-                    self.thermodes[key].set_ramp_speed(self.heat_dict[stim_ctr][key]["URATE"])
-                    self.thermodes[key].set_return_speed(self.heat_dict[stim_ctr][key]["DRATE"])
-                    self.thermodes[key].set_temperatures(self.heat_dict[stim_ctr][key]["TGT"])
+                    self.thermodes[key].set_durations(list(self.heat_dict[stim_ctr][key]["HOLD"]))
+                    self.thermodes[key].set_ramp_speed(list(self.heat_dict[stim_ctr][key]["URATE"]))
+                    self.thermodes[key].set_return_speed(list(self.heat_dict[stim_ctr][key]["DRATE"]))
+                    self.thermodes[key].set_temperatures(list(self.heat_dict[stim_ctr][key]["TGT"]))
                     self.thermodes[key].stimulate()    
 
 
