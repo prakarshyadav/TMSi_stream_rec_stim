@@ -1,14 +1,14 @@
 # import os
 import tkinter as tk
 from tkinter import ttk
-
+import os
 from vis_feedback import render_emg,init_settings
 from tmsi_dual_interface import TMSi_gui
-# import PySide2
+import PySide2
 
-# dirname = os.path.dirname(PySide2.__file__)
-# plugin_path = os.path.join(dirname, 'plugins', 'platforms')
-# os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = plugin_path
+dirname = os.path.dirname(PySide2.__file__)
+plugin_path = os.path.join(dirname, 'plugins', 'platforms')
+os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = plugin_path
 
 class APP_main(tk.Tk):
     def __init__(self):

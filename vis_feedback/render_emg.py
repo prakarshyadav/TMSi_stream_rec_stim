@@ -612,7 +612,7 @@ class APP(tk.Toplevel):
         self.lbl_daq_name.pack(fill='x', expand=True)
         self.lbl_daq_name.place(x=10, y=100)
         self.t_daq_name = tk.Entry(self, textvariable=self.daq_name)
-        self.t_daq_name.insert(0, "Dev3")
+        self.t_daq_name.insert(0, "Dev2")
         self.t_daq_name.pack(fill='x', expand=True)
         self.t_daq_name.focus()
         self.t_daq_name.place(x=150, y=100, width = 100)

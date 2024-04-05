@@ -117,7 +117,7 @@ class tmsi_start(object):
              print('[{0}] : [{1}] in [{2}]'.format(idx, ch.name, ch.unit_name))
         return None
 
-    def set_channels(self, UNI_list = list(range(0,64)), BIP_list = [], AUX_list = [], triggers = 1):
+    def set_channels(self, UNI_list = list(range(0,65)), BIP_list = [], AUX_list = [], triggers = 1):
         #Enables all UNI and no BIP/AUX channels
         ch_list = self.dev.config.channels
         UNI_count = 0
