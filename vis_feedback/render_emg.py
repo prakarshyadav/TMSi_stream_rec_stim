@@ -1324,13 +1324,17 @@ class APP(tk.Toplevel):
         if label_2 != 'None':
             self.thermodes[label_1] = TcsDevice(port=label_1)
             self.thermodes[label_1].set_quiet()
+            self.thermodes[label_1].set_baseline(float(self.therm1_baseline.get()))
             # self.heat_dict[label_1]={}
             self.thermodes[label_2] = TcsDevice(port=label_2)
             self.thermodes[label_2].set_quiet()
+            self.thermodes[label_2].set_baseline(float(self.therm2_baseline.get()))
+
             # self.heat_dict[label_2]={}
         else:
             self.thermodes[label_1] = TcsDevice(port=label_1)
             self.thermodes[label_1].set_quiet()
+            self.thermodes[label_1].set_baseline(float(self.therm1_baseline.get()))
             # self.heat_dict[label_1]={}
         self.select_contacts()
         self.stop_therm_button.config(bg = 'red')
