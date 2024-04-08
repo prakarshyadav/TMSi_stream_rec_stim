@@ -65,6 +65,7 @@ class APP_main(tk.Tk):
 
     def open_disp(self):
         # self.tmsi_dev ={"FLX":[],"EXT":[]}
+        # self.dump_path = "data/PX/20240408"
         window = render_emg.APP(self, self.tmsi_dev, self.dump_path)
         window.grab_set()
         self.wait_window(window)

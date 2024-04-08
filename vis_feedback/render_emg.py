@@ -607,6 +607,11 @@ class APP(tk.Toplevel):
         self.t_trial_ID.focus()
         self.t_trial_ID.place(x=150, y=40, width = 50)
 
+        self.read_cur_trial_button = tk.Button(self, text='READ TRIAL FROM CSV', bg ='yellow')
+        self.read_cur_trial_button['command'] = self.read_cur_trial
+        self.read_cur_trial_button.pack()
+        self.read_cur_trial_button.place(x=250, y=40)
+
         self.daq_name = tk.StringVar()
         self.lbl_daq_name = ttk.Label(self, text='DAQ ID:')
         self.lbl_daq_name.pack(fill='x', expand=True)
@@ -657,7 +662,7 @@ class APP(tk.Toplevel):
         self.lbl_conv_factor.pack(fill='x', expand=True)
         self.lbl_conv_factor.place(x=10, y=220)
         self.t_conv_factor = tk.Entry(self, textvariable=self.conv_factor)
-        self.t_conv_factor.insert(0, "0.26959694")
+        self.t_conv_factor.insert(0, "1")
         self.t_conv_factor.pack(fill='x', expand=True)
         self.t_conv_factor.focus()
         self.t_conv_factor.place(x=150, y=220, width = 100)
@@ -1052,19 +1057,149 @@ class APP(tk.Toplevel):
         self.clear_therm_config_button.pack()
         self.clear_therm_config_button.place(x=810, y=900)
 
-        # self.lbl_max_temp = ttk.Label(self, text="Max Temp",font=('Helvetica 16 bold'))
-        # self.lbl_max_temp.pack(fill='x', expand=True)
-        # self.lbl_max_temp.place(x=1000, y=370)
-        # self.max_temp = tk.StringVar()
-        # self.max_temp.set('40')
 
-        # self.lbl_max_temp_num = ttk.Label(self, textvariable=self.max_temp,font=('Helvetica 30 bold'))
-        # self.lbl_max_temp_num.pack(fill='x', expand=True)
-        # self.lbl_max_temp_num.place(x=1000, y=400)
-        # self.t_max_temp_num = tk.Entry(self, textvariable=self.max_temp)
-        # self.t_max_temp_num.pack(fill='x', expand=True)
-        # self.t_max_temp_num.focus()
-        # self.t_max_temp_num.place(x=1000, y=450, width = 200)
+        self.param_file_path = tk.StringVar()
+        self.lbl_param_file_path = ttk.Label(self, text='Param file: ')
+        self.lbl_param_file_path.pack(fill='x', expand=True)
+        self.lbl_param_file_path.place(x=1000, y=20)
+        self.t_param_file_path = tk.Entry(self, textvariable=self.param_file_path)
+        self.t_param_file_path.insert(0, os.path.join(self.dump_path,'params.csv'))
+        self.t_param_file_path.pack(fill='x', expand=True)
+        self.t_param_file_path.focus()
+        self.t_param_file_path.place(x=1100, y=20, width = 200)
+
+        self.read_prev_trial_button = tk.Button(self, text='PREV', bg ='yellow')
+        self.read_prev_trial_button['command'] = self.read_prev_trial
+        self.read_prev_trial_button.pack()
+        self.read_prev_trial_button.place(x=1000, y=50)
+
+        self.read_next_trial_button = tk.Button(self, text='NEXT', bg ='yellow')
+        self.read_next_trial_button['command'] = self.read_next_trial
+        self.read_next_trial_button.pack()
+        self.read_next_trial_button.place(x=1050, y=50)
+
+    def read_csv(self, path, trial_ID):
+        params = np.loadtxt(path,dtype='str',delimiter=',')
+        titles = params[0]
+        param_vals = params[1:][trial_ID]
+        param_dict = {}
+        for i,title in enumerate(titles):
+            param_dict[title] = param_vals[i]
+        return param_dict
+
+    def update_csv(self, path, trial_ID):
+        params = np.loadtxt(path,dtype='str',delimiter=',')
+        params[1:][trial_ID][-1] = '1'
+        np.savetxt(path,params,fmt= "%s", delimiter=',')
+
+
+
+    def update_params(self, param_dict):
+
+        self.X_profile.set(param_dict["X axis"].replace(';',', '))# = tk.StringVar()
+        self.Y_profile.set(param_dict["MVC targets"].replace(';',', '))# = tk.StringVar()
+        self.do_vanilla()
+
+        if int(param_dict['TMS flag']):
+            self.stim_rate.set(float(param_dict['TMS stim interval']))# = tk.StringVar()
+            self.stim_start.set(float(param_dict['Start time for stim']))# = tk.StringVar()
+            self.stim_stop.set(float(param_dict['Stop time for stim']))# = tk.StringVar()
+            self.stim_push()
+
+        if int(param_dict['Heat pain flag']):
+
+            self.t1_c1_check.set(int(param_dict['Therm 1 contact 1']))# = tk.IntVar()
+            # self.therm1_c1.set(int(param_dict['Therm 1 contact 1']))
+            self.t1_c2_check.set(int(param_dict['Therm 1 contact 2']))# = tk.IntVar() = tk.IntVar()
+            # self.therm1_c2.set(int(param_dict['Therm 1 contact 2']))
+            self.t1_c3_check.set(int(param_dict['Therm 1 contact 3']))# = tk.IntVar() = tk.IntVar()
+            # self.therm1_c3.set(int(param_dict['Therm 1 contact 3']))
+            self.t1_c4_check.set(int(param_dict['Therm 1 contact 4']))# = tk.IntVar() = tk.IntVar()
+            # self.therm1_c4.set(int(param_dict['Therm 1 contact 4']))
+            self.t1_c5_check.set(int(param_dict['Therm 1 contact 5']))# = tk.IntVar() = tk.IntVar()
+            # self.therm1_c5.set(int(param_dict['Therm 1 contact 5']))
+
+            self.t2_c1_check.set(int(param_dict['Therm 2 contact 1']))# = tk.IntVar() = tk.IntVar()
+            # self.therm2_c1.set(int(param_dict['Therm 2 contact 1']))
+            self.t2_c2_check.set(int(param_dict['Therm 2 contact 2']))# = tk.IntVar() = tk.IntVar()
+            # self.therm2_c2.set(int(param_dict['Therm 2 contact 2']))
+            self.t2_c3_check.set(int(param_dict['Therm 2 contact 3']))# = tk.IntVar() = tk.IntVar()
+            # self.therm2_c3.set(int(param_dict['Therm 2 contact 3']))
+            self.t2_c4_check.set(int(param_dict['Therm 2 contact 4']))# = tk.IntVar() = tk.IntVar()
+            # self.therm2_c4.set(int(param_dict['Therm 2 contact 4']))
+            self.t2_c5_check.set(int(param_dict['Therm 2 contact 5']))# = tk.IntVar() = tk.IntVar()
+            # self.therm2_c5.set(int(param_dict['Therm 2 contact 5']))
+            self.select_contacts()
+            contacts_1 = int(param_dict['Therm 1 contact 1'])+int(param_dict['Therm 1 contact 2'])+int(param_dict['Therm 1 contact 3'])+int(param_dict['Therm 1 contact 4'])+int(param_dict['Therm 1 contact 5'])
+            contacts_2 = int(param_dict['Therm 2 contact 1'])+int(param_dict['Therm 2 contact 2'])+int(param_dict['Therm 2 contact 3'])+int(param_dict['Therm 2 contact 4'])+int(param_dict['Therm 2 contact 5'])
+            if contacts_1 >0:
+                therm1_base_arr = np.array(param_dict['Therm 1 base'].split(';')[:-1],dtype = float)
+                therm1_duration_arr = np.array(param_dict['Therm 1 duration'].split(';')[:-1],dtype = float)
+                therm1_tgt_arr =  np.array(param_dict['Therm 1 temp'].split(';')[:-1],dtype = float)
+                therm1_uprate_arr =  np.array(param_dict['Therm 1 rate down'].split(';')[:-1],dtype = float)
+                therm1_downrate_arr =  np.array(param_dict['Therm 1 rate up'].split(';')[:-1],dtype = float)
+                therm1_start_arr =  np.array(param_dict['Therm 1 start time'].split(';')[:-1],dtype = float)
+                for i in range(len(therm1_base_arr)):
+                    self.therm1_baseline.set(therm1_base_arr[i])# = tk.StringVar()
+                    self.therm1_hold_duration.set(therm1_duration_arr[i])
+                    self.therm1_tgt_temp.set(therm1_tgt_arr[i])# = tk.StringVar()
+                    self.therm1_ramp_down_rate.set(therm1_downrate_arr[i])# = tk.StringVar()
+                    self.therm1_ramp_up_rate.set(therm1_uprate_arr[i])# = tk.StringVar()
+                    self.therm1_start_time.set(therm1_start_arr[i])# = tk.StringVar()
+                    self.push_therm_config()
+
+            if contacts_2 >0:
+                therm2_base_arr = np.array(param_dict['Therm 2 base'].split(';')[:-1],dtype = float)
+                therm2_duration_arr = np.array(param_dict['Therm 2 duration'].split(';')[:-1],dtype = float)
+                therm2_tgt_arr =  np.array(param_dict['Therm 2 temp'].split(';')[:-1],dtype = float)
+                therm2_uprate_arr =  np.array(param_dict['Therm 2 rate down'].split(';')[:-1],dtype = float)
+                therm2_downrate_arr =  np.array(param_dict['Therm 2 rate up'].split(';')[:-1],dtype = float)
+                therm2_start_arr =  np.array(param_dict['Therm 2 start time'].split(';')[:-1],dtype = float)
+                for i in range(len(therm2_base_arr)):
+                    self.therm2_baseline.set(therm2_base_arr[i])# = tk.StringVar()
+                    self.therm2_hold_duration.set(therm2_duration_arr[i])
+                    self.therm2_tgt_temp.set(therm2_tgt_arr[i])# = tk.StringVar()
+                    self.therm2_ramp_down_rate.set(therm2_downrate_arr[i])# = tk.StringVar()
+                    self.therm2_ramp_up_rate.set(therm2_uprate_arr[i])# = tk.StringVar()
+                    self.therm2_start_time.set(therm2_start_arr[i])# = tk.StringVar()
+                    self.push_therm_config()
+
+        if int(param_dict['Completion Flag']) > 0:
+            showinfo("Trial marked as completed", "This trial has been marked as completed make sure to not duplicate files")
+        self.update()
+
+    def read_cur_trial(self):
+        current_trial = int(self.trial_ID.get())
+        trial_param_dict = self.read_csv(self.param_file_path.get(),current_trial)
+        self.update_params(trial_param_dict)
+        self.t_trial_ID.delete(0, 'end')
+        self.t_trial_ID.insert(0, str(current_trial))
+
+        self.update()
+
+
+    def read_next_trial(self):
+        self.trial_ID.set(str(int(self.trial_ID.get())+1))
+        current_trial = int(self.trial_ID.get())
+
+        trial_param_dict = self.read_csv(self.param_file_path.get(),current_trial)
+        self.update_params(trial_param_dict)
+        
+        self.t_trial_ID.delete(0, 'end')
+        self.t_trial_ID.insert(0, str(current_trial))
+        self.update()
+
+    def read_prev_trial(self):
+        self.trial_ID.set(str(int(self.trial_ID.get())-1))
+        current_trial = int(self.trial_ID.get())
+
+
+        trial_param_dict = self.read_csv(self.param_file_path.get(),current_trial)
+        self.update_params(trial_param_dict)
+
+        self.t_trial_ID.delete(0, 'end')
+        self.t_trial_ID.insert(0, str(current_trial))
+        self.update()
 
     def clear_therm_config(self):
         self.heat_dict = {}
@@ -1181,6 +1316,7 @@ class APP(tk.Toplevel):
         # showinfo(title='Thermode param sent', message="Pushed params to Thermode")
 
     def init_therm(self):
+
         label_1 = str(self.therm_1_name.get())
         label_2 = str(self.therm_2_name.get())
         self.thermodes = {}
@@ -1200,6 +1336,27 @@ class APP(tk.Toplevel):
         self.stop_therm_button.config(bg = 'red')
         self.init_therm_button.config(bg = 'green')
         showinfo(title='Thermode started', message="Started "+str(len(self.thermodes))+" Thermode")
+        # """
+        # for debug
+        # """
+        # label_1 = str(self.therm_1_name.get())
+        # label_2 = str(self.therm_2_name.get())
+        # self.thermodes = {label_1:0}
+        # self.heat_dict ={}
+        # # if label_2 != 'None':
+        # #     self.thermodes[label_1] = TcsDevice(port=label_1)
+        # #     self.thermodes[label_1].set_quiet()
+        # #     # self.heat_dict[label_1]={}
+        # #     self.thermodes[label_2] = TcsDevice(port=label_2)
+        # #     self.thermodes[label_2].set_quiet()
+        # #     # self.heat_dict[label_2]={}
+        # # else:
+        # #     self.thermodes[label_1] = TcsDevice(port=label_1)
+        # #     self.thermodes[label_1].set_quiet()
+        # #     # self.heat_dict[label_1]={}
+        # self.select_contacts()
+        # self.stop_therm_button.config(bg = 'red')
+        # self.init_therm_button.config(bg = 'green')
         
     def stop_therm(self):
         for key in self.thermodes.keys():
@@ -1285,6 +1442,8 @@ class APP(tk.Toplevel):
             self.t_trial_ID.delete(0, 'end')
             self.t_trial_ID.insert(0, str(current_trial))
             self.update()
+        self.update_csv(self.param_file_path.get(),int(self.trial_ID.get()))
+        
 
     def set_vis_mode(self):
         self.vis_chan_drop['menu'].delete(0, 'end')
