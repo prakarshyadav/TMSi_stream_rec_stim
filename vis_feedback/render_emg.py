@@ -617,7 +617,7 @@ class APP(tk.Toplevel):
         self.lbl_daq_name.pack(fill='x', expand=True)
         self.lbl_daq_name.place(x=10, y=100)
         self.t_daq_name = tk.Entry(self, textvariable=self.daq_name)
-        self.t_daq_name.insert(0, "Dev2")
+        self.t_daq_name.insert(0, "Dev3")
         self.t_daq_name.pack(fill='x', expand=True)
         self.t_daq_name.focus()
         self.t_daq_name.place(x=150, y=100, width = 100)
@@ -1081,7 +1081,7 @@ class APP(tk.Toplevel):
     def read_csv(self, path, trial_ID):
         params = np.loadtxt(path,dtype='str',delimiter=',')
         titles = params[0]
-        param_vals = params[1:][trial_ID]
+        param_vals = params[1:][trial_ID-1]
         param_dict = {}
         for i,title in enumerate(titles):
             param_dict[title] = param_vals[i]
@@ -1089,7 +1089,7 @@ class APP(tk.Toplevel):
 
     def update_csv(self, path, trial_ID):
         params = np.loadtxt(path,dtype='str',delimiter=',')
-        params[1:][trial_ID][-1] = '1'
+        params[1:][trial_ID-2][-1] = '1'
         np.savetxt(path,params,fmt= "%s", delimiter=',')
 
 
@@ -1404,10 +1404,11 @@ class APP(tk.Toplevel):
             savemat(os.path.join(self.dump_path,'trial_'+ self.trial_ID.get()+'_'+str(start_time)+'_profiles'+".mat"), out_mat)
             self.task_trial.write(False)
             self.stop_tmsi()
-            self.trial_ID.set(str(int(self.trial_ID.get())+1))
-            current_trial = int(self.trial_ID.get())
-            self.t_trial_ID.delete(0, 'end')
-            self.t_trial_ID.insert(0, str(current_trial))
+            self.read_next_trial()
+            # self.trial_ID.set(str(int(self.trial_ID.get())+1))
+            # current_trial = int(self.trial_ID.get())
+            # self.t_trial_ID.delete(0, 'end')
+            # self.t_trial_ID.insert(0, str(current_trial))
             self.update()
         else:
             window = heat_gui(self, self.task_trial, 
@@ -1441,10 +1442,11 @@ class APP(tk.Toplevel):
             self.task_trial.write(False)
             self.stop_tmsi()
             savemat(os.path.join(self.dump_path,'trial_'+ self.trial_ID.get()+'_'+str(start_time)+'_profiles'+".mat"), out_mat)
-            self.trial_ID.set(str(int(self.trial_ID.get())+1))
-            current_trial = int(self.trial_ID.get())
-            self.t_trial_ID.delete(0, 'end')
-            self.t_trial_ID.insert(0, str(current_trial))
+            self.read_next_trial()
+            # self.trial_ID.set(str(int(self.trial_ID.get())+1))
+            # current_trial = int(self.trial_ID.get())
+            # self.t_trial_ID.delete(0, 'end')
+            # self.t_trial_ID.insert(0, str(current_trial))
             self.update()
         self.update_csv(self.param_file_path.get(),int(self.trial_ID.get()))
         

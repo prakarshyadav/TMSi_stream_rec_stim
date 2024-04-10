@@ -123,7 +123,7 @@ class heat_gui(tk.Toplevel):
         self.kill = True
         for key in self.thermodes.keys():
             self.thermodes[key].set_quiet()
-            self.thermodes[key].set_baseline(self.heat_dict[0][key]["BL"])
+            self.thermodes[key].set_baseline(self.heat_dict[1][key]["BL"])
         self.inlet.inlet.close_stream()
         self.destroy()
 
@@ -163,7 +163,7 @@ class heat_gui(tk.Toplevel):
         
         for key in self.thermodes.keys():
             self.thermodes[key].set_quiet()
-            self.thermodes[key].set_baseline(self.heat_dict[0][key]["BL"])
+            self.thermodes[key].set_baseline(self.heat_dict[1][key]["BL"])
 
 
         baseline_list = []
