@@ -121,6 +121,9 @@ class heat_gui(tk.Toplevel):
         
     def stop_vis(self):
         self.kill = True
+        for key in self.thermodes.keys():
+            self.thermodes[key].set_quiet()
+            self.thermodes[key].set_baseline(self.heat_dict[0][key]["BL"])
         self.inlet.inlet.close_stream()
         self.destroy()
 
@@ -156,7 +159,13 @@ class heat_gui(tk.Toplevel):
         #     array_data = self.inlet.pull_and_plot()
         #     array_data_filt = np.abs(array_data[:self.EMG_avg_win,self.vis_chan_slice])
         #     array_data_scaled = np.abs(np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0)).T
-        #     baseline =  abs(np.mean(array_data_scaled))
+        #     baseline =  abs(np.mean(array_data_scaled))   
+        
+        for key in self.thermodes.keys():
+            self.thermodes[key].set_quiet()
+            self.thermodes[key].set_baseline(self.heat_dict[0][key]["BL"])
+
+
         baseline_list = []
         t0 = time.time()
         stim_ctr = 0

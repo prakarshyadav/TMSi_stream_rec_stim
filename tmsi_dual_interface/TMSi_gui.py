@@ -19,7 +19,7 @@ class TMSi_GUI(tk.Toplevel):
 
         self.title('Dual-TMSi setup')
         self.geometry('600x600')
-        self.UNI_list =  list(range(0,64))
+        self.UNI_list =  list(range(0,65))
         self.BIP_list = []
         self.AUX_list = []
         self.samp_rate = 2000
@@ -218,7 +218,7 @@ class TMSi_GUI(tk.Toplevel):
             except ValueError:
                 showinfo(title='Invalid entry', message="Use Int (16,32,64)")
             if num_chan > 0:
-                self.UNI_list = list(range(0,num_chan))
+                self.UNI_list = list(range(0,num_chan+1))
             showinfo(title='Grid assigned', message="Setting " + str(num_chan) + " electrode channels")
         else:
             showinfo(title='Grid not set', message="Check the box again and set valid values")
