@@ -207,7 +207,7 @@ if __name__ == "__main__":
     parser.add_argument('--blank_win_U',default=10, type=int,
                         help= "time in ms after stim to blank")
     
-    parser.add_argument('--particiapnt_ID',default='P2', type=str,
+    parser.add_argument('--particiapnt_ID',default='P2_TES', type=str,
                         help= "Data directory")
     
     parser.add_argument('--GRID',default=True, type=bool,

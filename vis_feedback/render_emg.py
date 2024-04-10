@@ -407,7 +407,7 @@ class display_force_data(tk.Toplevel):
         self.l_history = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 5, color = 'c',)
         self.l_current = self.disp_target.plot(self.x_axis, self.force_holder, linewidth = 13, color = 'b',)
         self.disp_target.set_xlim([0,self.trial_params['duration']])
-        self.disp_target.set_ylim([0,self.trial_params['MVF']*0.5])
+        self.disp_target.set_ylim([0,self.trial_params['MVF']*0.75])
 
         self.canvas_disp_target.draw()
 
