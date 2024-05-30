@@ -486,7 +486,7 @@ class display_force_data(tk.Toplevel):
                 if stim_ctr<len(self.stim_profile_x):
                     curr_pulse_time = self.stim_profile_x[stim_ctr]
                 else:
-                    curr_pulse_time += int(self.parent.stim_rate.get())
+                    curr_pulse_time += float(self.parent.stim_rate.get())
                 self.trig_holder.append(1)
             self.trig_holder.append(0)
             
