@@ -299,7 +299,7 @@ class check_MEPs_win(tk.Toplevel):
             self.force_holder.popleft()
             array_data = self.inlet.pull_and_plot()
             if self.vis_chan_mode == 'aux':
-                array_data_filt = array_data[:self.EMG_avg_win,self.vis_chan_slice]
+                array_data_filt = array_data[:self.EMG_avg_win,self.vis_chan_slice]+ self.parent.vis_scaling_offset
             else:
                 samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
                 samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
@@ -310,13 +310,13 @@ class check_MEPs_win(tk.Toplevel):
             if time.time()-t0 < 3:
                 force = np.median(array_data_scaled)
                 if self.vis_chan_mode == 'aux':
-                    force = force*float(self.parent.conv_factor.get())
+                    force = force#*float(self.parent.conv_factor.get())
                 baseline_list.append(force)
                 baseline = np.median(baseline_list)
 
             else:
                 if self.vis_chan_mode == 'aux':
-                    force =abs((np.median(array_data_scaled)*float(self.parent.conv_factor.get()))-baseline)
+                    force =(abs(np.median(array_data_scaled)-baseline))*float(self.parent.conv_factor.get())
                     # print("using", baseline)
                     # force = force*float(self.parent.conv_factor.get())
                 else:
@@ -358,6 +358,7 @@ class check_MEPs_win(tk.Toplevel):
 class display_force_data(tk.Toplevel):
     def __init__(self, parent, task_trial, task_stim, target_profile_x,target_profile_y,stim_profile_x,stim_profile_y, trial_params,dev_select='FLX', vis_chan_mode='avg', vis_chan = 10,record = False):
         super().__init__(parent)
+
 
         self.vis_buffer_len = 5
         self.vis_xlim_pad = 3
@@ -496,7 +497,7 @@ class display_force_data(tk.Toplevel):
             array_data = self.inlet.pull_and_plot()
 
             if self.vis_chan_mode == 'aux':
-                array_data_filt = array_data[:self.EMG_avg_win,self.vis_chan_slice]
+                array_data_filt = array_data[:self.EMG_avg_win,self.vis_chan_slice] + self.parent.vis_scaling_offset
             else:
                 samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
                 samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
@@ -508,14 +509,14 @@ class display_force_data(tk.Toplevel):
             if time.time()-t0 < 3:
                 force = np.median(array_data_scaled)
                 if self.vis_chan_mode == 'aux':
-                    force = force*float(self.parent.conv_factor.get())
+                    force = force #*float(self.parent.conv_factor.get())
 
                 baseline_list.append(force)
                 baseline = np.median(baseline_list)
             else:
 
                 if self.vis_chan_mode == 'aux':
-                    force = abs((np.median(array_data_scaled)*float(self.parent.conv_factor.get()))-baseline)
+                    force = (abs(np.median(array_data_scaled)-baseline))*float(self.parent.conv_factor.get())
                 else:
                     force = abs(np.median(array_data_scaled) - baseline)
 
@@ -548,6 +549,8 @@ class APP(tk.Toplevel):
         """
         Buttons
         """
+        self.vis_scaling_offset = 50
+
         self.tmsi_dev = tmsi
         self.dump_path = dump_path
         self.start_rec_button = tk.Button(self, text='START', bg ='green')
@@ -656,7 +659,7 @@ class APP(tk.Toplevel):
         self.lbl_conv_factor.pack(fill='x', expand=True)
         self.lbl_conv_factor.place(x=10, y=220)
         self.t_conv_factor = tk.Entry(self, textvariable=self.conv_factor)
-        self.t_conv_factor.insert(0, "1")
+        self.t_conv_factor.insert(0, "4.52")
         self.t_conv_factor.pack(fill='x', expand=True)
         self.t_conv_factor.focus()
         self.t_conv_factor.place(x=150, y=220, width = 100)
@@ -1742,7 +1745,7 @@ class APP(tk.Toplevel):
                 time.sleep(0.1)
                 array_data = self.inlet.pull_and_plot()
                 if self.vis_chan_mode.get() == 'aux':
-                    array_data_filt = array_data[:self.EMG_avg_win,self.vis_chan_slice]
+                    array_data_filt = array_data[:self.EMG_avg_win,self.vis_chan_slice] + self.vis_scaling_offset
                 else:
                     samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
                     samples = np.abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
@@ -1750,13 +1753,13 @@ class APP(tk.Toplevel):
                 array_data_scaled = np.nan_to_num(array_data_filt,nan=0,posinf=0,neginf=0).T
                 curr_force = np.median(array_data_scaled)
                 if self.vis_chan_mode.get() == 'aux':
-                    curr_force = curr_force*float(self.conv_factor.get())
+                    curr_force = curr_force#*float(self.conv_factor.get())
                 print("not saved",curr_force)
             else:
                 time.sleep(0.1)
                 array_data = self.inlet.pull_and_plot()
                 if self.vis_chan_mode.get() == 'aux':
-                    array_data_filt = array_data[:self.EMG_avg_win,self.vis_chan_slice]*float(self.conv_factor.get())
+                    array_data_filt = array_data[:self.EMG_avg_win,self.vis_chan_slice]+ self.vis_scaling_offset#*float(self.conv_factor.get())
                 else:
                     samples_raw, z_sos_raw= sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
                     samples = np.abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
@@ -1790,7 +1793,7 @@ class APP(tk.Toplevel):
             time.sleep(0.1)
             array_data = self.inlet.pull_and_plot()
             if self.vis_chan_mode.get() == 'aux':
-                array_data_filt = array_data[:self.EMG_avg_win,self.vis_chan_slice]#sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
+                array_data_filt = array_data[:self.EMG_avg_win,self.vis_chan_slice] + self.vis_scaling_offset#sosfilt(sos_raw, array_data[:self.EMG_avg_win,self.vis_chan_slice].T, zi=z_sos_raw)
                 # samples = abs(samples_raw) - np.min(abs(samples_raw),axis =0).reshape(1,-1)
                 # array_data_filt, z_sos_env= sosfilt(samples_raw.T, samples, zi=z_sos_env)
             else:
@@ -1801,7 +1804,7 @@ class APP(tk.Toplevel):
             curr_force = np.median(array_data_scaled)
             
             if self.vis_chan_mode == 'aux':
-                curr_force =abs((np.median(array_data_scaled)*float(self.parent.conv_factor.get()))-baseline)
+                curr_force =(abs(np.median(array_data_scaled) -baseline))*float(self.conv_factor.get())
                 # print("using", baseline)
                 # curr_force = curr_force*float(self.conv_factor.get())
             else:
