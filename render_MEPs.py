@@ -198,7 +198,7 @@ if __name__ == "__main__":
     parser.add_argument('--vis_win_L',default=50, type=int,
                     help= "time in ms before stim")
     
-    parser.add_argument('--vis_win_U',default=100, type=int,
+    parser.add_argument('--vis_win_U',default=400, type=int,
                         help= "time in ms after stim")
     
     parser.add_argument('--blank_win_L',default=2, type=int,
@@ -207,7 +207,7 @@ if __name__ == "__main__":
     parser.add_argument('--blank_win_U',default=10, type=int,
                         help= "time in ms after stim to blank")
     
-    parser.add_argument('--particiapnt_ID',default='P2_TES', type=str,
+    parser.add_argument('--particiapnt_ID',default='P3', type=str,
                         help= "Data directory")
     
     parser.add_argument('--GRID',default=True, type=bool,
@@ -223,7 +223,7 @@ if __name__ == "__main__":
     parser.add_argument('--MEP',default=False, type=bool,
                         help= "Is the file an MEP scan")
     
-    parser.add_argument('--fname',default="EXT-20240229_125918", type=str,
+    parser.add_argument('--fname',default="trial_10_FLX-20240530_143816", type=str,
                         help= "File name of the trial")
     
 
